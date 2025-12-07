@@ -34,6 +34,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
+    @EnvironmentObject var appStore: AppStore
+    @EnvironmentObject var timerManager: TimerManager
     @State private var selectedItem: SidebarItem? = .today
 
     var body: some View {
@@ -125,4 +127,6 @@ struct SettingsView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(AppStore())
+        .environmentObject(TimerManager())
 }
