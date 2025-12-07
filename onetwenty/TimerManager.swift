@@ -21,7 +21,7 @@ final class TimerManager: ObservableObject {
     private var breakAccumulated: Int = 0
     private var breaksSkipped: Int = 0
     private var startedAt: Date?
-    private var tickTask: Task<Void, Never>?
+    private var tickTask: Swift.Task<Void, Never>?
     private var isPaused = false
 
     func start(for blockId: UUID, mode: FocusMode) {
@@ -42,7 +42,7 @@ final class TimerManager: ObservableObject {
         state = .focus
         isPaused = false
 
-        tickTask = Task { [weak self] in
+        tickTask = Swift.Task { [weak self] in
             await self?.runTimerLoop()
         }
     }
@@ -106,8 +106,8 @@ final class TimerManager: ObservableObject {
     }
 
     private func runTimerLoop() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        while !Swift.Task.isCancelled {
+            try? await Swift.Task.sleep(nanoseconds: 1_000_000_000)
             await MainActor.run {
                 self.tick()
             }
