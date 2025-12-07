@@ -245,9 +245,7 @@ struct RoadmapView: View {
 
 struct NotebooksView: View {
     var body: some View {
-        Text("Notebooks")
-            .font(.title)
-            .padding()
+        NotebooksRootView()
     }
 }
 
