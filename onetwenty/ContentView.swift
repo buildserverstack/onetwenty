@@ -44,6 +44,21 @@ struct ContentView: View {
         } detail: {
             detailView(for: selectedItem)
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .automatic) {
+                Button {
+                    appStore.showQuickCapture = true
+                } label: {
+                    Label("Quick Capture", systemImage: "plus.bubble")
+                }
+            }
+        }
+        .sheet(
+            isPresented: Binding(get: { appStore.showQuickCapture }, set: { appStore.showQuickCapture = $0 })
+        ) {
+            QuickCaptureView()
+                .environmentObject(appStore)
+        }
     }
 
     @ViewBuilder

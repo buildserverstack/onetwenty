@@ -136,26 +136,16 @@ struct PatternNotebookView: View {
 }
 
 struct MLIntuitionView: View {
-    struct MLNote: Identifiable {
-        let id: UUID
-        var title: String
-        var createdAt: Date
-        var details: String
-    }
-
-    @State private var notes: [MLNote] = [
-        MLNote(id: UUID(), title: "Transformer intuition", createdAt: Date(), details: "Key ideas behind attention and scaling."),
-        MLNote(id: UUID(), title: "Data centric approach", createdAt: Date(), details: "Validate, clean, and iterate on datasets.")
-    ]
+    @EnvironmentObject var appStore: AppStore
     @State private var selectedNoteID: UUID?
 
     private var selectedNoteBinding: Binding<MLNote?> {
         Binding<MLNote?> {
-            notes.first { $0.id == selectedNoteID } ?? notes.first
+            appStore.mlNotes.first { $0.id == selectedNoteID } ?? appStore.mlNotes.first
         } set: { newValue in
             guard let newValue else { return }
-            if let idx = notes.firstIndex(where: { $0.id == newValue.id }) {
-                notes[idx] = newValue
+            if let idx = appStore.mlNotes.firstIndex(where: { $0.id == newValue.id }) {
+                appStore.mlNotes[idx] = newValue
             }
         }
     }
@@ -167,7 +157,7 @@ struct MLIntuitionView: View {
     var body: some View {
         HStack(alignment: .top) {
             List(selection: $selectedNoteID) {
-                ForEach(notes) { note in
+                ForEach(appStore.mlNotes) { note in
                     VStack(alignment: .leading) {
                         Text(note.title)
                         Text(note.createdAt, style: .date)

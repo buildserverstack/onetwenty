@@ -97,6 +97,13 @@ struct PatternNote: Identifiable, Codable {
     var lastReviewed: Date?
 }
 
+struct MLNote: Identifiable, Codable {
+    let id: UUID
+    var title: String
+    var details: String
+    var createdAt: Date
+}
+
 struct Project: Identifiable, Codable {
     let id: UUID
     var name: String

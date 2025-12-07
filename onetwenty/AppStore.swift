@@ -7,9 +7,11 @@ final class AppStore: ObservableObject {
     @Published var reflections: [Reflection]
     @Published var timerSessions: [TimerSession]
     @Published var patternNotes: [PatternNote]
+    @Published var mlNotes: [MLNote]
     @Published var projects: [Project]
     @Published var behavioralStories: [BehavioralStory]
     @Published var reviewCards: [ReviewCard]
+    @Published var showQuickCapture: Bool
 
     init(
         dayPlans: [DayPlan] = [],
@@ -17,18 +19,22 @@ final class AppStore: ObservableObject {
         reflections: [Reflection] = [],
         timerSessions: [TimerSession] = [],
         patternNotes: [PatternNote] = [],
+        mlNotes: [MLNote] = [],
         projects: [Project] = [],
         behavioralStories: [BehavioralStory] = [],
-        reviewCards: [ReviewCard] = []
+        reviewCards: [ReviewCard] = [],
+        showQuickCapture: Bool = false
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
         self.reflections = reflections
         self.timerSessions = timerSessions
         self.patternNotes = patternNotes
+        self.mlNotes = mlNotes
         self.projects = projects
         self.behavioralStories = behavioralStories
         self.reviewCards = reviewCards
+        self.showQuickCapture = showQuickCapture
     }
 
     func loadInitialData() {
@@ -90,9 +96,17 @@ final class AppStore: ObservableObject {
             lastReviewed: nil
         )
 
+        let mlNote = MLNote(
+            id: UUID(),
+            title: "Transformer intuition",
+            details: "Quick reminder about attention and scaling laws.",
+            createdAt: Date()
+        )
+
         dayPlans = [sampleDay]
         currentDay = sampleDay
         patternNotes = [note]
+        mlNotes = [mlNote]
         projects = [sampleProject]
     }
 
@@ -126,9 +140,43 @@ final class AppStore: ObservableObject {
         patternNotes.append(note)
     }
 
+    func addMLNote(_ note: MLNote) {
+        mlNotes.append(note)
+    }
+
     func addProjectEntry(_ entry: ProjectJournalEntry, to projectId: UUID) {
         guard let index = projects.firstIndex(where: { $0.id == projectId }) else { return }
         projects[index].entries.append(entry)
+    }
+
+    func addProjectBugEntry(description: String) {
+        var targetProjectId: UUID
+
+        if let firstProject = projects.first {
+            targetProjectId = firstProject.id
+        } else {
+            let newProjectId = UUID()
+            let placeholder = Project(
+                id: newProjectId,
+                name: "Quick Capture Bugs",
+                description: "Auto-created for quick captured bugs",
+                entries: []
+            )
+            projects.append(placeholder)
+            targetProjectId = newProjectId
+        }
+
+        let entry = ProjectJournalEntry(
+            id: UUID(),
+            projectId: targetProjectId,
+            date: Date(),
+            whatIDid: "", 
+            whatILearned: "", 
+            whatBroke: description,
+            nextStep: ""
+        )
+
+        addProjectEntry(entry, to: targetProjectId)
     }
 
     func addBehavioralStory(_ story: BehavioralStory) {
