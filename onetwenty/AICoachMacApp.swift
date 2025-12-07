@@ -15,7 +15,7 @@ struct AICoachMacApp: App {
                 }
         }
 
-        MenuBarExtra(menuBarLabel) {
+        MenuBarExtra {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Timer Status")
                     .font(.headline)
@@ -56,6 +56,8 @@ struct AICoachMacApp: App {
             .padding()
             .environmentObject(timerManager)
             .environmentObject(appStore)
+        } label: {
+            menuBarLabel
         }
         .menuBarExtraStyle(.window)
     }
