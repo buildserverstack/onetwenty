@@ -24,14 +24,20 @@ final class TimerManager: ObservableObject {
     private var tickTask: Swift.Task<Void, Never>?
     private var isPaused = false
 
-    func start(for blockId: UUID, mode: FocusMode) {
+    func start(
+        for blockId: UUID,
+        mode: FocusMode,
+        customFocusDuration: Int? = nil,
+        customBreakDuration: Int? = nil,
+        customTotalCycles: Int? = nil
+    ) {
         stopTimerLoop()
 
         let defaults = defaults(for: mode)
         self.mode = mode
-        focusDuration = defaults.focus
-        breakDuration = defaults.break
-        totalCycles = defaults.cycles
+        focusDuration = customFocusDuration ?? defaults.focus
+        breakDuration = customBreakDuration ?? defaults.break
+        totalCycles = customTotalCycles ?? defaults.cycles
         remainingSeconds = mode == .stopwatch ? 0 : focusDuration
         cyclesCompleted = 0
         focusAccumulated = 0

@@ -249,14 +249,6 @@ struct NotebooksView: View {
     }
 }
 
-struct InterviewGymView: View {
-    var body: some View {
-        Text("Interview Gym")
-            .font(.title)
-            .padding()
-    }
-}
-
 struct SettingsView: View {
     var body: some View {
         Text("Settings")
@@ -366,7 +358,7 @@ struct BlockDetailView: View {
     }
 }
 
-private extension BlockType {
+extension BlockType {
     var systemImageName: String {
         switch self {
         case .dsa: return "circle.grid.cross"
@@ -379,7 +371,7 @@ private extension BlockType {
     }
 }
 
-private extension FocusMode {
+extension FocusMode {
     var displayName: String {
         switch self {
         case .focusedDrill: return "Focused Drill"
