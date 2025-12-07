@@ -1,83 +1,128 @@
-//
-//  ContentView.swift
-//  onetwenty
-//
-//  Created by sujay Chandra on 12/7/25.
-//
-
 import SwiftUI
-import CoreData
 
-struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+enum SidebarItem: String, CaseIterable, Identifiable {
+    case today
+    case roadmap
+    case notebooks
+    case progress
+    case interviewGym
+    case settings
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
+    var id: String { rawValue }
 
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-            Text("Select an item")
+    var title: String {
+        switch self {
+        case .today: return "Today"
+        case .roadmap: return "Roadmap"
+        case .notebooks: return "Notebooks"
+        case .progress: return "Progress"
+        case .interviewGym: return "Interview Gym"
+        case .settings: return "Settings"
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+    var systemImageName: String {
+        switch self {
+        case .today: return "sun.max"
+        case .roadmap: return "map"
+        case .notebooks: return "book"
+        case .progress: return "chart.bar.doc.horizontal"
+        case .interviewGym: return "bolt"
+        case .settings: return "gear"
         }
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
+struct ContentView: View {
+    @State private var selectedItem: SidebarItem? = .today
+
+    var body: some View {
+        NavigationSplitView {
+            SidebarView(selectedItem: $selectedItem)
+        } detail: {
+            detailView(for: selectedItem)
+        }
+    }
+
+    @ViewBuilder
+    private func detailView(for item: SidebarItem?) -> some View {
+        switch item {
+        case .today, .none:
+            TodayView()
+        case .roadmap:
+            RoadmapView()
+        case .notebooks:
+            NotebooksView()
+        case .progress:
+            ProgressView()
+        case .interviewGym:
+            InterviewGymView()
+        case .settings:
+            SettingsView()
+        }
+    }
+}
+
+struct SidebarView: View {
+    @Binding var selectedItem: SidebarItem?
+
+    var body: some View {
+        List(SidebarItem.allCases, selection: $selectedItem) { item in
+            Label(item.title, systemImage: item.systemImageName)
+                .tag(item)
+        }
+        .navigationTitle("AICoachMac")
+    }
+}
+
+struct TodayView: View {
+    var body: some View {
+        Text("Today")
+            .font(.title)
+            .padding()
+    }
+}
+
+struct RoadmapView: View {
+    var body: some View {
+        Text("Roadmap")
+            .font(.title)
+            .padding()
+    }
+}
+
+struct NotebooksView: View {
+    var body: some View {
+        Text("Notebooks")
+            .font(.title)
+            .padding()
+    }
+}
+
+struct ProgressView: View {
+    var body: some View {
+        Text("Progress & Revision")
+            .font(.title)
+            .padding()
+    }
+}
+
+struct InterviewGymView: View {
+    var body: some View {
+        Text("Interview Gym")
+            .font(.title)
+            .padding()
+    }
+}
+
+struct SettingsView: View {
+    var body: some View {
+        Text("Settings")
+            .font(.title)
+            .padding()
+    }
+}
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
 }
