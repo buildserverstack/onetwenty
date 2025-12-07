@@ -136,18 +136,6 @@ struct ProgressView: View {
     }
 }
 
-private extension FocusMode {
-    var displayName: String {
-        switch self {
-        case .focusedDrill: return "Focused Drill"
-        case .conceptBlock: return "Concept"
-        case .deepBuild: return "Deep Build"
-        case .simulationBurst: return "Simulation"
-        case .stopwatch: return "Stopwatch"
-        }
-    }
-}
-
 private extension ReviewType {
     var displayName: String {
         switch self {
