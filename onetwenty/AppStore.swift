@@ -149,4 +149,23 @@ final class AppStore: ObservableObject {
     func getReflections(for dayPlanId: UUID) -> [Reflection] {
         reflections.filter { $0.dayPlanId == dayPlanId }
     }
+
+    func reviewItemsDueToday() -> [ReviewCard] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return reviewCards
+            .filter { Calendar.current.startOfDay(for: $0.dueDate) <= today }
+            .sorted { $0.dueDate < $1.dueDate }
+    }
+
+    func handleReviewResult(card: ReviewCard, hard: Bool) {
+        guard let index = reviewCards.firstIndex(where: { $0.id == card.id }) else { return }
+
+        let easeAdjustment = hard ? -1 : 1
+        let intervalDays = hard ? 1 : 3
+        let newEase = max(0, reviewCards[index].easeScore + easeAdjustment)
+        let newDueDate = Calendar.current.date(byAdding: .day, value: intervalDays, to: Date()) ?? Date()
+
+        reviewCards[index].easeScore = newEase
+        reviewCards[index].dueDate = newDueDate
+    }
 }

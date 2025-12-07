@@ -249,14 +249,6 @@ struct NotebooksView: View {
     }
 }
 
-struct ProgressView: View {
-    var body: some View {
-        Text("Progress & Revision")
-            .font(.title)
-            .padding()
-    }
-}
-
 struct InterviewGymView: View {
     var body: some View {
         Text("Interview Gym")
