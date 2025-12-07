@@ -140,10 +140,106 @@ struct TodayView: View {
 }
 
 struct RoadmapView: View {
+    @EnvironmentObject var appStore: AppStore
+    @State private var selectedDayPlan: DayPlan?
+
     var body: some View {
-        Text("Roadmap")
-            .font(.title)
-            .padding()
+        HStack(alignment: .top) {
+            List(appStore.dayPlans) { day in
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Day \(day.dayNumber)")
+                            .font(.headline)
+                        Text(day.phase)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(day.title)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+
+                    Spacer()
+
+                    let isCompleted = dayCompleted(day)
+                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(isCompleted ? .green : .secondary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedDayPlan = day
+                }
+            }
+            .frame(minWidth: 280)
+            .onAppear {
+                if selectedDayPlan == nil {
+                    selectedDayPlan = appStore.dayPlans.first
+                }
+            }
+
+            Divider()
+
+            if let dayPlan = selectedDayPlan {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Day \(dayPlan.dayNumber) • \(dayPlan.phase)")
+                        .font(.title2)
+                    Text(dayPlan.title)
+                        .font(.headline)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Blocks")
+                            .font(.headline)
+                        ForEach(dayPlan.blocks) { block in
+                            HStack {
+                                Image(systemName: block.type.systemImageName)
+                                VStack(alignment: .leading) {
+                                    Text(block.title)
+                                        .font(.subheadline)
+                                    Text(block.description)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+
+                    if let reflection = latestReflection(for: dayPlan) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Latest Reflection")
+                                .font(.headline)
+                            Text("Rating: \(reflection.rating)")
+                            if !reflection.mlInsights.isEmpty {
+                                Text("ML Insights: \(reflection.mlInsights.prefix(2).joined(separator: ", "))")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    Button("Open as Today") {
+                        appStore.currentDay = dayPlan
+                    }
+
+                    Spacer()
+                }
+                .padding()
+            } else {
+                Text("Select a day to view its details.")
+                    .foregroundColor(.secondary)
+                    .padding()
+            }
+        }
+    }
+
+    private func dayCompleted(_ dayPlan: DayPlan) -> Bool {
+        if latestReflection(for: dayPlan) != nil {
+            return true
+        }
+
+        let allBlocksCompleted = dayPlan.blocks.allSatisfy { $0.isCompleted }
+        return allBlocksCompleted
+    }
+
+    private func latestReflection(for dayPlan: DayPlan) -> Reflection? {
+        appStore.getReflections(for: dayPlan.id).last
     }
 }
 
