@@ -39,31 +39,39 @@ struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .today
 
     var body: some View {
-        if appStore.dayPlans.isEmpty || appStore.startDayNumber == nil {
-            OnboardingView()
-                .environmentObject(appStore)
-        } else {
-        NavigationSplitView {
-            SidebarView(selectedItem: $selectedItem)
-        } detail: {
-            detailView(for: selectedItem)
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                Button {
-                    appStore.toggleQuickCapture()
-                } label: {
-                    Label("Quick Capture", systemImage: "plus.bubble")
+        ZStack {
+            AppColors.background.ignoresSafeArea()
+
+            if appStore.dayPlans.isEmpty || appStore.startDayNumber == nil {
+                OnboardingView()
+                    .environmentObject(appStore)
+            } else {
+                NavigationSplitView {
+                    SidebarView(selectedItem: $selectedItem)
+                } detail: {
+                    detailView(for: selectedItem)
+                        .background(AppColors.background)
+                }
+                .tint(AppColors.accent)
+                .toolbar {
+                    ToolbarItemGroup(placement: .automatic) {
+                        Button {
+                            appStore.toggleQuickCapture()
+                        } label: {
+                            Label("Quick Capture", systemImage: "plus.bubble")
+                        }
+                    }
+                }
+                .sheet(
+                    isPresented: Binding(get: { appStore.isQuickCaptureVisible }, set: { appStore.isQuickCaptureVisible = $0 })
+                ) {
+                    QuickCaptureView()
+                        .environmentObject(appStore)
+                        .background(AppColors.background)
                 }
             }
         }
-        .sheet(
-            isPresented: Binding(get: { appStore.isQuickCaptureVisible }, set: { appStore.isQuickCaptureVisible = $0 })
-        ) {
-            QuickCaptureView()
-                .environmentObject(appStore)
-        }
-        }
+        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -92,8 +100,14 @@ struct SidebarView: View {
         List(SidebarItem.allCases, selection: $selectedItem) { item in
             Label(item.title, systemImage: item.systemImageName)
                 .tag(item)
+                .primaryTextStyle()
         }
+        .listStyle(.inset)
+        .scrollContentBackground(.hidden)
+        .background(AppColors.background)
+        .listRowBackground(AppColors.surface)
         .navigationTitle("AICoachMac")
+        .tint(AppColors.accent)
     }
 }
 
@@ -111,119 +125,131 @@ struct TodayView: View {
     @State private var weaknessTagsText: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DaySelectorView()
-                .environmentObject(appStore)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                DaySelectorView()
+                    .environmentObject(appStore)
+                    .cardBackground()
 
-            Divider()
-
-            if let currentDay = appStore.currentDay {
-                HStack(alignment: .top) {
-                    List(currentDay.blocks, id: \.id) { block in
-                        HStack {
-                            Image(systemName: block.type.systemImageName)
-                            VStack(alignment: .leading) {
-                                Text(block.title)
-                                    .font(.headline)
-                                Text(block.description)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                if let currentDay = appStore.currentDay {
+                    HStack(alignment: .top, spacing: 16) {
+                        List(currentDay.blocks, id: \.id) { block in
+                            HStack {
+                                Image(systemName: block.type.systemImageName)
+                                    .foregroundColor(AppColors.accent)
+                                VStack(alignment: .leading) {
+                                    Text(block.title)
+                                        .font(.headline)
+                                        .primaryTextStyle()
+                                    Text(block.description)
+                                        .font(.subheadline)
+                                        .secondaryTextStyle()
+                                }
+                                Spacer()
+                                Image(systemName: block.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(block.isCompleted ? AppColors.accent : AppColors.textSecondary)
                             }
-                            Spacer()
-                            Image(systemName: block.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(block.isCompleted ? .green : .secondary)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedBlock = block
+                            }
                         }
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedBlock = block
+                        .frame(minWidth: 260)
+                        .listStyle(.inset)
+                        .scrollContentBackground(.hidden)
+                        .background(AppColors.surface)
+                        .listRowBackground(AppColors.surface)
+                        .cardBackground()
+                        .onAppear {
+                            if selectedBlock == nil {
+                                selectedBlock = currentDay.blocks.first
+                            }
                         }
-                    }
-                    .frame(minWidth: 260)
-                    .onAppear {
-                        if selectedBlock == nil {
-                            selectedBlock = currentDay.blocks.first
+                        .onChange(of: appStore.currentDay?.id) { _ in
+                            selectedBlock = appStore.currentDay?.blocks.first
                         }
-                    }
-                    .onChange(of: appStore.currentDay?.id) { _ in
-                        selectedBlock = appStore.currentDay?.blocks.first
+
+                        if let block = selectedBlock {
+                            BlockDetailView(block: block, dayPlan: currentDay)
+                                .environmentObject(appStore)
+                                .environmentObject(timerManager)
+                                .cardBackground()
+                        } else {
+                            Text("Select a block to view details")
+                                .secondaryTextStyle()
+                                .cardBackground()
+                        }
                     }
 
-                    Divider()
-
-                    if let block = selectedBlock {
-                        BlockDetailView(block: block, dayPlan: currentDay)
-                            .environmentObject(appStore)
-                            .environmentObject(timerManager)
-                    } else {
-                        Text("Select a block to view details")
-                            .foregroundColor(.secondary)
-                            .padding()
-                    }
+                    reflectionSection(for: currentDay)
+                        .cardBackground()
+                } else {
+                    Text("Select or create a day plan to get started.")
+                        .font(.title3)
+                        .secondaryTextStyle()
+                        .cardBackground()
                 }
-                .padding(.top, 4)
-
-                Divider()
-
-                reflectionSection(for: currentDay)
-        } else {
-            Text("Select or create a day plan to get started.")
-                .font(.title3)
-                .foregroundColor(.secondary)
-                .padding()
             }
+            .padding()
         }
-        .padding()
+        .background(AppColors.background)
+        .tint(AppColors.accent)
     }
 
     @ViewBuilder
     private func reflectionSection(for dayPlan: DayPlan) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Reflection & Rating")
-                .font(.title2)
+                .font(AppFonts.title)
+                .primaryTextStyle()
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("ML / LLM / DL Insights")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 VoiceDictationField(text: $mlInsight1, placeholder: "ML / LLM insight #1")
                 VoiceDictationField(text: $mlInsight2, placeholder: "ML / LLM insight #2")
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("DSA Pattern")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 TextField("Pattern name", text: $dsaPattern)
+                    .textFieldStyle(.roundedBorder)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Communication / Interview Learning")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 VoiceDictationField(text: $communicationLearning, placeholder: "What improved?")
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Mistake")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 VoiceDictationField(text: $mistake, placeholder: "What went wrong?")
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Question for Tomorrow")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 TextField("What to clarify next?", text: $questionForTomorrow)
+                    .textFieldStyle(.roundedBorder)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Weakness Tags (comma-separated)")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 TextField("e.g., arrays, gradient descent", text: $weaknessTagsText)
+                    .textFieldStyle(.roundedBorder)
             }
 
             HStack {
                 Text("Rating")
-                    .font(.headline)
+                    .sectionTitleStyle()
                 Stepper(value: $rating, in: 1...5) {
                     Text("\(rating)")
+                        .primaryTextStyle()
                 }
             }
 
@@ -258,6 +284,7 @@ struct TodayView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .tint(AppColors.accent)
         }
         .padding(.top, 12)
     }
@@ -392,25 +419,29 @@ struct BlockDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(workingBlock.title)
                     .font(.title2)
+                    .primaryTextStyle()
                 Text(workingBlock.description)
-                    .foregroundColor(.secondary)
+                    .secondaryTextStyle()
             }
+            .cardBackground()
 
-            tasksSection
-            resourcesSection
-            timerSection
+            tasksSection.cardBackground()
+            resourcesSection.cardBackground()
+            timerSection.cardBackground()
 
             Spacer()
         }
         .padding()
+        .background(AppColors.background)
     }
 
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Tasks")
-                .font(.headline)
+                .sectionTitleStyle()
             ForEach($workingBlock.tasks, id: \.id) { $task in
                 Toggle(task.title, isOn: $task.isDone)
+                    .primaryTextStyle()
             }
         }
     }
@@ -418,17 +449,18 @@ struct BlockDetailView: View {
     private var resourcesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Resources")
-                .font(.headline)
+                .sectionTitleStyle()
 
             let resources = availableResources
             if resources.isEmpty {
                 Text("No resources for this block.")
-                    .foregroundColor(.secondary)
+                    .secondaryTextStyle()
                     .font(.subheadline)
             } else {
                 ForEach(resources) { resource in
                     Link(resource.label, destination: resource.url)
                         .font(.body)
+                        .primaryTextStyle()
                 }
             }
         }
@@ -444,7 +476,7 @@ struct BlockDetailView: View {
     private var timerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Timer")
-                .font(.headline)
+                .sectionTitleStyle()
 
             Picker("Mode", selection: $timerManager.mode) {
                 ForEach(FocusMode.allCases, id: \.self) { mode in
@@ -457,10 +489,11 @@ struct BlockDetailView: View {
                 VStack(alignment: .leading) {
                     Text(timerManager.state.label)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .secondaryTextStyle()
                     Text(formattedTime(timerManager.remainingSeconds))
                         .font(.title2)
                         .monospacedDigit()
+                        .primaryTextStyle()
                 }
 
                 Spacer()

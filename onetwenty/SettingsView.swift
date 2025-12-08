@@ -7,40 +7,40 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Settings")
-                    .font(.largeTitle)
+                    .font(AppFonts.title)
+                    .primaryTextStyle()
 
                 ImportPlanView()
                     .environmentObject(appStore)
-
-                Divider()
+                    .cardBackground()
 
                 ExportSettingsView()
                     .environmentObject(appStore)
+                    .cardBackground()
 
-                Divider()
-                timerSettings
+                timerSettings.cardBackground()
 
-                Divider()
-                revisionSettings
+                revisionSettings.cardBackground()
 
                 if !appStore.dayPlans.isEmpty {
-                    Divider()
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Current Plan")
-                            .font(.headline)
+                            .sectionTitleStyle()
                         Text("Days loaded: \(appStore.dayPlans.count)")
+                            .primaryTextStyle()
                         if let current = appStore.currentDay {
                             Text("Current Day: #\(current.dayNumber) – \(current.title)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .secondaryTextStyle()
                         }
                     }
+                    .cardBackground()
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
             }
             .padding()
         }
+        .background(AppColors.background)
     }
 }
 
@@ -48,11 +48,11 @@ private extension SettingsView {
     var timerSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Timer Settings")
-                .font(.headline)
+                .sectionTitleStyle()
 
             Text("Customize focus and break durations (minutes) and cycles for each focus mode.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(AppFonts.body)
+                .secondaryTextStyle()
 
             timerRow(
                 title: "Focused Drill",
@@ -87,11 +87,11 @@ private extension SettingsView {
     var revisionSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Revision Settings")
-                .font(.headline)
+                .sectionTitleStyle()
 
             Text("Control how many cards you see daily and the interval multipliers for review scheduling.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(AppFonts.body)
+                .secondaryTextStyle()
 
             Stepper(value: revisionBinding(for: \.dailyMaxCards), in: 1...100) {
                 Text("Daily max cards: \(appStore.revisionSettings.dailyMaxCards)")
@@ -104,12 +104,14 @@ private extension SettingsView {
             HStack(spacing: 16) {
                 VStack(alignment: .leading) {
                     Text("Hard multiplier")
+                        .primaryTextStyle()
                     TextField("Hard multiplier", value: revisionBinding(for: \.hardIntervalMultiplier), formatter: numberFormatter)
                         .frame(width: 100)
                 }
 
                 VStack(alignment: .leading) {
                     Text("Easy multiplier")
+                        .primaryTextStyle()
                     TextField("Easy multiplier", value: revisionBinding(for: \.easyIntervalMultiplier), formatter: numberFormatter)
                         .frame(width: 100)
                 }
