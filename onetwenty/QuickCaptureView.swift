@@ -15,31 +15,60 @@ struct QuickCaptureView: View {
     @State private var content: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Picker("Type", selection: $captureType) {
-                ForEach(CaptureType.allCases) { type in
-                    Text(type.rawValue).tag(type)
+        ZStack {
+            AppColors.background.opacity(0.75)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Quick Capture")
+                        .font(AppFonts.headline)
+                        .primaryTextStyle()
+
+                    Spacer()
+
+                    Picker("Type", selection: $captureType) {
+                        ForEach(CaptureType.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .tint(AppColors.accent)
+                    .frame(maxWidth: 220)
+                }
+
+                VoiceDictationField(text: $content, placeholder: "Speak or type your note…")
+                    .frame(minHeight: 140)
+
+                HStack {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .buttonStyle(.plain)
+                    .secondaryTextStyle()
+
+                    Spacer()
+
+                    Button {
+                        handleSave()
+                    } label: {
+                        Text("Save")
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(AppColors.accent)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .keyboardShortcut(.return, modifiers: [.command])
+                    .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1.0)
                 }
             }
-            .pickerStyle(.segmented)
-
-            VoiceDictationField(text: $content, placeholder: "Capture notes quickly")
-                .frame(minHeight: 120)
-
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    dismiss()
-                }
-                Button("Save") {
-                    handleSave()
-                }
-                .keyboardShortcut(.return, modifiers: [.command])
-                .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            .frame(maxWidth: 380)
+            .cardBackground()
+            .padding()
         }
-        .padding()
-        .frame(minWidth: 360)
     }
 
     private func handleSave() {
