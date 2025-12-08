@@ -180,15 +180,14 @@ struct MLIntuitionView: View {
                     Text("Created: \(note.createdAt.formatted(date: .abbreviated, time: .shortened))")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    TextEditor(text: Binding(get: { note.details }, set: { newValue in
-                        note.details = newValue
-                        selectedNoteBinding.wrappedValue = note
-                    }))
-                        .frame(minHeight: 200)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.secondary.opacity(0.3))
-                        )
+                    VoiceDictationField(
+                        text: Binding(get: { note.details }, set: { newValue in
+                            note.details = newValue
+                            selectedNoteBinding.wrappedValue = note
+                        }),
+                        placeholder: "Describe the ML / LLM intuition"
+                    )
+                    .frame(minHeight: 200)
                     Spacer()
                 }
                 .padding()
@@ -270,9 +269,9 @@ struct ProjectsView: View {
             Text("Add Entry")
                 .font(.headline)
             DatePicker("Date", selection: $entryDate, displayedComponents: [.date])
-            TextField("What I did", text: $entryWhatIDid)
+            VoiceDictationField(text: $entryWhatIDid, placeholder: "What I did")
             TextField("What I learned", text: $entryWhatILearned)
-            TextField("What broke", text: $entryWhatBroke)
+            VoiceDictationField(text: $entryWhatBroke, placeholder: "What broke")
             TextField("Next step", text: $entryNextStep)
             Button("Save Entry") {
                 let entry = ProjectJournalEntry(

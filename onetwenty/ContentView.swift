@@ -185,8 +185,8 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("ML / LLM / DL Insights")
                     .font(.headline)
-                TextField("Insight 1", text: $mlInsight1)
-                TextField("Insight 2", text: $mlInsight2)
+                VoiceDictationField(text: $mlInsight1, placeholder: "ML / LLM insight #1")
+                VoiceDictationField(text: $mlInsight2, placeholder: "ML / LLM insight #2")
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -198,13 +198,13 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Communication / Interview Learning")
                     .font(.headline)
-                TextField("What improved?", text: $communicationLearning)
+                VoiceDictationField(text: $communicationLearning, placeholder: "What improved?")
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Mistake")
                     .font(.headline)
-                TextField("What went wrong?", text: $mistake)
+                VoiceDictationField(text: $mistake, placeholder: "What went wrong?")
             }
 
             VStack(alignment: .leading, spacing: 8) {

@@ -23,12 +23,8 @@ struct QuickCaptureView: View {
             }
             .pickerStyle(.segmented)
 
-            TextEditor(text: $content)
+            VoiceDictationField(text: $content, placeholder: "Capture notes quickly")
                 .frame(minHeight: 120)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.2))
-                )
 
             HStack {
                 Spacer()
