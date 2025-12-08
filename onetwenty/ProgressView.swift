@@ -13,7 +13,37 @@ struct ProgressView: View {
         for session in appStore.timerSessions {
             totals[session.mode, default: 0] += session.focusSeconds
         }
-        return totals.sorted { $0.key.displayName < $1.key.displayName }
+        return totals.sorted { $0.value > $1.value }
+    }
+
+    private var topModeLabel: String {
+        guard let top = focusBreakdown.first else { return "No data yet" }
+        return top.0.displayName
+    }
+
+    private var totalFocusHours: Int {
+        let totalSeconds = appStore.timerSessions.reduce(0) { $0 + $1.focusSeconds }
+        return Int(round(Double(totalSeconds) / 3600.0))
+    }
+
+    private var activeStreak: Int {
+        let days = appStore.reflections.map { $0.dayPlanId }
+        let plansById = Dictionary(uniqueKeysWithValues: appStore.dayPlans.map { ($0.id, $0) })
+        let dayNumbers = days.compactMap { plansById[$0]?.dayNumber }.sorted()
+        guard !dayNumbers.isEmpty else { return 0 }
+
+        var streak = 1
+        var current = 1
+        for pair in zip(dayNumbers.dropFirst(), dayNumbers) {
+            if pair.0 == pair.1 + 1 {
+                current += 1
+            } else {
+                streak = max(streak, current)
+                current = 1
+            }
+        }
+        streak = max(streak, current)
+        return streak
     }
 
     private var scheduledBreaks: Int { appStore.totalBreaksScheduled() }
@@ -28,79 +58,156 @@ struct ProgressView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                summarySection
-                focusSection
-                breakSection
+                statGrid
                 revisionSection
+                breakSection
             }
             .padding()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(AppColors.background)
     }
 
-    private var summarySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Progress Overview")
-                .font(.title2)
-            Text("Completed days: \(completedDaysCount)")
-                .font(.headline)
+    private var statGrid: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Progress Dashboard")
+                .font(AppFonts.title)
+                .primaryTextStyle()
+
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    statCard(title: "Days Completed", value: "\(completedDaysCount)", subtitle: "Logged reflections")
+                    statCard(title: "Total Focus Time", value: "\(totalFocusHours)h", subtitle: "Mostly \(topModeLabel)")
+                    statCard(title: "Active Streak", value: "\(activeStreak)", subtitle: "Consecutive days")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    private var focusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Timer Sessions")
-                .font(.headline)
+    private func statCard(title: String, value: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(AppFonts.caption)
+                .secondaryTextStyle()
 
-            if focusBreakdown.isEmpty {
-                Text("No timer sessions logged yet.")
-                    .foregroundColor(.secondary)
+            Text(value)
+                .font(AppFonts.title)
+                .primaryTextStyle()
+
+            Text(subtitle)
+                .font(AppFonts.body)
+                .secondaryTextStyle()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground()
+        .background(AppColors.surface)
+    }
+
+    private var revisionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Today's Revision Queue")
+                .sectionTitleStyle()
+
+            if dueCards.isEmpty {
+                Text("No review cards due today.")
+                    .secondaryTextStyle()
             } else {
-                ForEach(focusBreakdown, id: \.0) { mode, seconds in
-                    HStack {
-                        Text(mode.displayName)
-                        Spacer()
-                        Text(formattedDuration(seconds))
-                            .monospacedDigit()
-                            .foregroundColor(.secondary)
+                VStack(spacing: 10) {
+                    ForEach(dueCards) { card in
+                        revisionCard(card)
                     }
                 }
             }
         }
+        .cardBackground()
+    }
+
+    private func revisionCard(_ card: ReviewCard) -> some View {
+        HStack(spacing: 12) {
+            icon(for: card.type)
+                .foregroundColor(AppColors.accent)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(derivedLabel(for: card))
+                    .font(AppFonts.body)
+                    .primaryTextStyle()
+                Text(card.dueDate, style: .date)
+                    .font(AppFonts.caption)
+                    .secondaryTextStyle()
+            }
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button("Done") {
+                    appStore.handleReviewResult(card: card, hard: false)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(AppColors.accent.opacity(0.2))
+                .foregroundColor(AppColors.textPrimary)
+                .clipShape(Capsule())
+
+                Button("Hard") {
+                    appStore.handleReviewResult(card: card, hard: true)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .overlay(Capsule().stroke(AppColors.accent, lineWidth: 1))
+                .foregroundColor(AppColors.textPrimary)
+            }
+        }
+        .padding()
+        .background(AppColors.surfaceElevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(AppColors.border, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var breakSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Break Discipline")
-                .font(.headline)
+                .sectionTitleStyle()
 
             if scheduledBreaks == 0 {
                 Text("No breaks recorded yet.")
-                    .foregroundColor(.secondary)
+                    .secondaryTextStyle()
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Scheduled")
+                        Text("Scheduled breaks")
+                            .secondaryTextStyle()
                         Spacer()
                         Text("\(scheduledBreaks)")
+                            .primaryTextStyle()
                     }
 
                     HStack {
-                        Text("Skipped")
+                        Text("Skipped breaks")
+                            .secondaryTextStyle()
                         Spacer()
                         Text("\(skippedBreaks)")
+                            .primaryTextStyle()
                     }
 
                     HStack {
                         Text("Compliance")
+                            .secondaryTextStyle()
                         Spacer()
                         Text(complianceText)
+                            .primaryTextStyle()
                             .monospacedDigit()
                     }
 
                     barForBreaks
+                        .frame(height: 14)
                 }
             }
         }
+        .cardBackground()
     }
 
     private var barForBreaks: some View {
@@ -109,72 +216,28 @@ struct ProgressView: View {
 
         return GeometryReader { geometry in
             let takenWidth = geometry.size.width * CGFloat(taken) / CGFloat(total)
-            let skippedWidth = max(geometry.size.width - takenWidth, 0)
 
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.green.opacity(0.7))
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(AppColors.surfaceElevated)
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(AppColors.accentSoft)
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(AppColors.accent)
                     .frame(width: takenWidth)
-                Rectangle()
-                    .fill(Color.orange.opacity(0.6))
-                    .frame(width: skippedWidth)
             }
-            .frame(height: 10)
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.gray.opacity(0.25), lineWidth: 1)
-            )
         }
-        .frame(height: 12)
     }
 
-    private var revisionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Revision Queue")
-                .font(.headline)
-
-            if dueCards.isEmpty {
-                Text("No review cards due today.")
-                    .foregroundColor(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(dueCards) { card in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(card.type.displayName)
-                                    .font(.subheadline)
-                                Spacer()
-                                Text(card.dueDate, style: .date)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Text(derivedLabel(for: card))
-                                .font(.body)
-
-                            HStack {
-                                Button("Done") {
-                                    appStore.handleReviewResult(card: card, hard: false)
-                                }
-                                Button("Hard") {
-                                    appStore.handleReviewResult(card: card, hard: true)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.gray.opacity(0.05))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                }
-            }
+    private func icon(for type: ReviewType) -> some View {
+        let name: String
+        switch type {
+        case .pattern: name = "square.stack"
+        case .mlTopic: name = "brain.head.profile"
+        case .project: name = "hammer"
+        case .behavioral: name = "person.2.circle"
         }
+        return Image(systemName: name)
     }
 
     private func derivedLabel(for card: ReviewCard) -> String {
@@ -187,29 +250,6 @@ struct ProgressView: View {
             return appStore.projects.first(where: { $0.id == card.referenceId })?.name ?? "Project"
         case .behavioral:
             return appStore.behavioralStories.first(where: { $0.id == card.referenceId })?.question ?? "Behavioral Story"
-        }
-    }
-
-    private func formattedDuration(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let hours = minutes / 60
-        let remainingMinutes = minutes % 60
-
-        if hours > 0 {
-            return String(format: "%dh %dm", hours, remainingMinutes)
-        } else {
-            return String(format: "%dm", minutes)
-        }
-    }
-}
-
-private extension ReviewType {
-    var displayName: String {
-        switch self {
-        case .pattern: return "Pattern"
-        case .mlTopic: return "ML Topic"
-        case .project: return "Project"
-        case .behavioral: return "Behavioral"
         }
     }
 }
