@@ -14,6 +14,14 @@ struct AICoachMacApp: App {
                     appStore.loadInitialData()
                 }
         }
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Quick Capture") {
+                    appStore.toggleQuickCapture()
+                }
+                .keyboardShortcut(.space, modifiers: [.option])
+            }
+        }
 
         MenuBarExtra {
             VStack(alignment: .leading, spacing: 8) {

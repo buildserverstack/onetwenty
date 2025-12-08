@@ -43,7 +43,7 @@ final class AppStore: ObservableObject {
     @Published var projects: [Project]
     @Published var behavioralStories: [BehavioralStory]
     @Published var reviewCards: [ReviewCard]
-    @Published var showQuickCapture: Bool
+    @Published var isQuickCaptureVisible: Bool
     @Published var exportCSVURL: URL?
     @Published var startDayNumber: Int?
     @Published var dailyTimeBudgetMinutes: Int
@@ -59,7 +59,7 @@ final class AppStore: ObservableObject {
         projects: [Project] = [],
         behavioralStories: [BehavioralStory] = [],
         reviewCards: [ReviewCard] = [],
-        showQuickCapture: Bool = false,
+        isQuickCaptureVisible: Bool = false,
         exportCSVURL: URL? = nil,
         startDayNumber: Int? = nil,
         dailyTimeBudgetMinutes: Int = 180,
@@ -74,11 +74,15 @@ final class AppStore: ObservableObject {
         self.projects = projects
         self.behavioralStories = behavioralStories
         self.reviewCards = reviewCards
-        self.showQuickCapture = showQuickCapture
+        self.isQuickCaptureVisible = isQuickCaptureVisible
         self.exportCSVURL = exportCSVURL
         self.startDayNumber = startDayNumber
         self.dailyTimeBudgetMinutes = dailyTimeBudgetMinutes
         self.focusWeights = focusWeights
+    }
+
+    func toggleQuickCapture() {
+        isQuickCaptureVisible.toggle()
     }
 
     func loadInitialData() {

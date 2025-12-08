@@ -88,7 +88,7 @@ struct QuickCaptureView: View {
 
     private func dismiss() {
         content = ""
-        appStore.showQuickCapture = false
+        appStore.isQuickCaptureVisible = false
     }
 
     private func titleFromContent(defaultName: String) -> String {
