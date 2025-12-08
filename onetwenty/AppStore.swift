@@ -1,6 +1,31 @@
 import Foundation
 import Combine
 
+struct FocusWeights {
+    var dsa: Double
+    var ml: Double
+    var projects: Double
+    var interview: Double
+
+    init(dsa: Double = 0.25, ml: Double = 0.25, projects: Double = 0.25, interview: Double = 0.25) {
+        self.dsa = dsa
+        self.ml = ml
+        self.projects = projects
+        self.interview = interview
+    }
+
+    func normalized() -> FocusWeights {
+        let total = dsa + ml + projects + interview
+        guard total > 0 else { return FocusWeights(dsa: 0.25, ml: 0.25, projects: 0.25, interview: 0.25) }
+        return FocusWeights(
+            dsa: dsa / total,
+            ml: ml / total,
+            projects: projects / total,
+            interview: interview / total
+        )
+    }
+}
+
 enum DayStatusColor: String {
     case blue   // completed
     case red    // not completed
@@ -20,6 +45,9 @@ final class AppStore: ObservableObject {
     @Published var reviewCards: [ReviewCard]
     @Published var showQuickCapture: Bool
     @Published var exportCSVURL: URL?
+    @Published var startDayNumber: Int?
+    @Published var dailyTimeBudgetMinutes: Int
+    @Published var focusWeights: FocusWeights
 
     init(
         dayPlans: [DayPlan] = [],
@@ -32,7 +60,10 @@ final class AppStore: ObservableObject {
         behavioralStories: [BehavioralStory] = [],
         reviewCards: [ReviewCard] = [],
         showQuickCapture: Bool = false,
-        exportCSVURL: URL? = nil
+        exportCSVURL: URL? = nil,
+        startDayNumber: Int? = nil,
+        dailyTimeBudgetMinutes: Int = 180,
+        focusWeights: FocusWeights = FocusWeights()
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
@@ -45,6 +76,9 @@ final class AppStore: ObservableObject {
         self.reviewCards = reviewCards
         self.showQuickCapture = showQuickCapture
         self.exportCSVURL = exportCSVURL
+        self.startDayNumber = startDayNumber
+        self.dailyTimeBudgetMinutes = dailyTimeBudgetMinutes
+        self.focusWeights = focusWeights
     }
 
     func loadInitialData() {
@@ -118,6 +152,14 @@ final class AppStore: ObservableObject {
         patternNotes = [note]
         mlNotes = [mlNote]
         projects = [sampleProject]
+        startDayNumber = sampleDay.dayNumber
+    }
+
+    func applyOnboarding(startDay: Int, dailyBudgetMinutes: Int, focusWeights: FocusWeights) {
+        startDayNumber = startDay
+        dailyTimeBudgetMinutes = dailyBudgetMinutes
+        self.focusWeights = focusWeights.normalized()
+        currentDay = dayPlans.first { $0.dayNumber == startDay }
     }
 
     /// Imports day plans from a CSV file. Expected headers (case-insensitive):

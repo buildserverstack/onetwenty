@@ -39,6 +39,10 @@ struct ContentView: View {
     @State private var selectedItem: SidebarItem? = .today
 
     var body: some View {
+        if appStore.dayPlans.isEmpty || appStore.startDayNumber == nil {
+            OnboardingView()
+                .environmentObject(appStore)
+        } else {
         NavigationSplitView {
             SidebarView(selectedItem: $selectedItem)
         } detail: {
@@ -58,6 +62,7 @@ struct ContentView: View {
         ) {
             QuickCaptureView()
                 .environmentObject(appStore)
+        }
         }
     }
 
