@@ -16,6 +16,11 @@ struct ProgressView: View {
         return totals.sorted { $0.key.displayName < $1.key.displayName }
     }
 
+    private var scheduledBreaks: Int { appStore.totalBreaksScheduled() }
+    private var skippedBreaks: Int { appStore.totalBreaksSkipped() }
+    private var complianceRate: Double { appStore.breakComplianceRate() }
+    private var complianceText: String { String(format: "%.0f%%", complianceRate * 100) }
+
     private var dueCards: [ReviewCard] {
         appStore.reviewItemsDueToday()
     }
@@ -25,6 +30,7 @@ struct ProgressView: View {
             VStack(alignment: .leading, spacing: 24) {
                 summarySection
                 focusSection
+                breakSection
                 revisionSection
             }
             .padding()
@@ -60,6 +66,67 @@ struct ProgressView: View {
                 }
             }
         }
+    }
+
+    private var breakSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Break Discipline")
+                .font(.headline)
+
+            if scheduledBreaks == 0 {
+                Text("No breaks recorded yet.")
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Scheduled")
+                        Spacer()
+                        Text("\(scheduledBreaks)")
+                    }
+
+                    HStack {
+                        Text("Skipped")
+                        Spacer()
+                        Text("\(skippedBreaks)")
+                    }
+
+                    HStack {
+                        Text("Compliance")
+                        Spacer()
+                        Text(complianceText)
+                            .monospacedDigit()
+                    }
+
+                    barForBreaks
+                }
+            }
+        }
+    }
+
+    private var barForBreaks: some View {
+        let taken = max(scheduledBreaks - skippedBreaks, 0)
+        let total = max(scheduledBreaks, 1)
+
+        return GeometryReader { geometry in
+            let takenWidth = geometry.size.width * CGFloat(taken) / CGFloat(total)
+            let skippedWidth = max(geometry.size.width - takenWidth, 0)
+
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.green.opacity(0.7))
+                    .frame(width: takenWidth)
+                Rectangle()
+                    .fill(Color.orange.opacity(0.6))
+                    .frame(width: skippedWidth)
+            }
+            .frame(height: 10)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.gray.opacity(0.25), lineWidth: 1)
+            )
+        }
+        .frame(height: 12)
     }
 
     private var revisionSection: some View {

@@ -582,6 +582,29 @@ final class AppStore: ObservableObject {
         reviewCards[index].dueDate = newDueDate
     }
 
+    // MARK: - Break Discipline Analytics
+
+    func totalBreaksScheduled() -> Int {
+        timerSessions.reduce(0) { total, session in
+            guard session.mode != .stopwatch else { return total }
+            return total + max(session.cyclesCompleted, 0)
+        }
+    }
+
+    func totalBreaksSkipped() -> Int {
+        timerSessions.reduce(0) { total, session in
+            total + max(session.breaksSkipped, 0)
+        }
+    }
+
+    func breakComplianceRate() -> Double {
+        let scheduled = totalBreaksScheduled()
+        guard scheduled > 0 else { return 0 }
+
+        let taken = max(scheduled - totalBreaksSkipped(), 0)
+        return Double(taken) / Double(scheduled)
+    }
+
     func updateExportForDay(_ dayPlan: DayPlan) {
         exportProgressIfPossible(for: dayPlan)
     }
