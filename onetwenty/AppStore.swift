@@ -81,6 +81,21 @@ enum DayStatusColor: String {
     case green  // revised
 }
 
+enum AppThemeChoice: String, Codable, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+}
+
 final class AppStore: ObservableObject {
     @Published var dayPlans: [DayPlan]
     @Published var currentDay: DayPlan?
@@ -98,6 +113,7 @@ final class AppStore: ObservableObject {
     @Published var focusWeights: FocusWeights
     @Published var timerPreferences: TimerPreferences
     @Published var revisionSettings: RevisionSettings
+    @Published var selectedTheme: AppThemeChoice
 
     init(
         dayPlans: [DayPlan] = [],
@@ -115,7 +131,8 @@ final class AppStore: ObservableObject {
         dailyTimeBudgetMinutes: Int = 180,
         focusWeights: FocusWeights = FocusWeights(),
         timerPreferences: TimerPreferences = .defaults,
-        revisionSettings: RevisionSettings = .defaults
+        revisionSettings: RevisionSettings = .defaults,
+        selectedTheme: AppThemeChoice = .system
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
@@ -133,6 +150,7 @@ final class AppStore: ObservableObject {
         self.focusWeights = focusWeights
         self.timerPreferences = timerPreferences
         self.revisionSettings = revisionSettings
+        self.selectedTheme = selectedTheme
     }
 
     func toggleQuickCapture() {

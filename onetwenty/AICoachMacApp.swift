@@ -11,6 +11,7 @@ struct AICoachMacApp: App {
             ContentView()
                 .environmentObject(appStore)
                 .environmentObject(timerManager)
+                .preferredColorScheme(resolvedColorScheme)
                 .onAppear {
                     appStore.loadInitialData()
                     timerManager.updatePreferences(appStore.timerPreferences)
@@ -106,6 +107,17 @@ struct AICoachMacApp: App {
             return "Break"
         case .idle:
             return "Idle"
+        }
+    }
+
+    private var resolvedColorScheme: ColorScheme? {
+        switch appStore.selectedTheme {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
         }
     }
 

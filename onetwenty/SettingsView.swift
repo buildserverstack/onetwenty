@@ -10,30 +10,39 @@ struct SettingsView: View {
                     .font(AppFonts.title)
                     .primaryTextStyle()
 
-                ImportPlanView()
-                    .environmentObject(appStore)
-                    .cardBackground()
+                sectionCard(title: "Plan Import") {
+                    ImportPlanView()
+                        .environmentObject(appStore)
+                }
 
-                ExportSettingsView()
-                    .environmentObject(appStore)
-                    .cardBackground()
+                sectionCard(title: "Export & Progress Tracking") {
+                    ExportSettingsView()
+                        .environmentObject(appStore)
+                }
 
-                timerSettings.cardBackground()
+                sectionCard(title: "Timer Settings") {
+                    timerSettings
+                }
 
-                revisionSettings.cardBackground()
+                sectionCard(title: "Revision Settings") {
+                    revisionSettings
+                }
+
+                sectionCard(title: "Appearance") {
+                    appearanceSettings
+                }
 
                 if !appStore.dayPlans.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Current Plan")
-                            .sectionTitleStyle()
-                        Text("Days loaded: \(appStore.dayPlans.count)")
-                            .primaryTextStyle()
-                        if let current = appStore.currentDay {
-                            Text("Current Day: #\(current.dayNumber) – \(current.title)")
-                                .secondaryTextStyle()
+                    sectionCard(title: "Current Plan") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Days loaded: \(appStore.dayPlans.count)")
+                                .primaryTextStyle()
+                            if let current = appStore.currentDay {
+                                Text("Current Day: #\(current.dayNumber) – \(current.title)")
+                                    .secondaryTextStyle()
+                            }
                         }
                     }
-                    .cardBackground()
                 }
 
                 Spacer(minLength: 0)
@@ -46,77 +55,114 @@ struct SettingsView: View {
 
 private extension SettingsView {
     var timerSettings: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Timer Settings")
-                .sectionTitleStyle()
-
-            Text("Customize focus and break durations (minutes) and cycles for each focus mode.")
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Customize focus, break durations, and cycles for each mode.")
                 .font(AppFonts.body)
                 .secondaryTextStyle()
 
-            timerRow(
-                title: "Focused Drill",
-                focusBinding: binding(for: \.focusedDrillFocusMinutes),
-                breakBinding: binding(for: \.focusedDrillBreakMinutes),
-                cyclesBinding: binding(for: \.focusedDrillCycles)
-            )
-
-            timerRow(
-                title: "Concept Block",
-                focusBinding: binding(for: \.conceptBlockFocusMinutes),
-                breakBinding: binding(for: \.conceptBlockBreakMinutes),
-                cyclesBinding: binding(for: \.conceptBlockCycles)
-            )
-
-            timerRow(
-                title: "Deep Build",
-                focusBinding: binding(for: \.deepBuildFocusMinutes),
-                breakBinding: binding(for: \.deepBuildBreakMinutes),
-                cyclesBinding: binding(for: \.deepBuildCycles)
-            )
-
-            timerRow(
-                title: "Simulation Burst",
-                focusBinding: binding(for: \.simulationBurstFocusMinutes),
-                breakBinding: binding(for: \.simulationBurstBreakMinutes),
-                cyclesBinding: binding(for: \.simulationBurstCycles)
-            )
+            ForEach(timerRows, id: \.title) { row in
+                timerRow(
+                    title: row.title,
+                    focusBinding: row.focusBinding,
+                    breakBinding: row.breakBinding,
+                    cyclesBinding: row.cyclesBinding
+                )
+                if row.title != timerRows.last?.title {
+                    Divider()
+                        .background(AppColors.border)
+                }
+            }
         }
     }
 
     var revisionSettings: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Revision Settings")
-                .sectionTitleStyle()
-
-            Text("Control how many cards you see daily and the interval multipliers for review scheduling.")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tune your spaced repetition pacing.")
                 .font(AppFonts.body)
                 .secondaryTextStyle()
 
             Stepper(value: revisionBinding(for: \.dailyMaxCards), in: 1...100) {
                 Text("Daily max cards: \(appStore.revisionSettings.dailyMaxCards)")
+                    .primaryTextStyle()
             }
+            Text("Caps how many review cards appear each day.")
+                .font(AppFonts.caption)
+                .secondaryTextStyle()
 
             Stepper(value: revisionBinding(for: \.initialIntervalDays), in: 1...30) {
-                Text("Initial interval (days): \(appStore.revisionSettings.initialIntervalDays)")
+                Text("Initial interval: \(appStore.revisionSettings.initialIntervalDays) day(s)")
+                    .primaryTextStyle()
             }
+            Text("Base spacing used for new cards before multipliers are applied.")
+                .font(AppFonts.caption)
+                .secondaryTextStyle()
 
             HStack(spacing: 16) {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Hard multiplier")
                         .primaryTextStyle()
                     TextField("Hard multiplier", value: revisionBinding(for: \.hardIntervalMultiplier), formatter: numberFormatter)
-                        .frame(width: 100)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
                 }
 
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Easy multiplier")
                         .primaryTextStyle()
                     TextField("Easy multiplier", value: revisionBinding(for: \.easyIntervalMultiplier), formatter: numberFormatter)
-                        .frame(width: 100)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
                 }
             }
+
+            Text("Hard lowers the interval, easy raises it—tweak to match your pacing.")
+                .font(AppFonts.caption)
+                .secondaryTextStyle()
         }
+    }
+
+    var appearanceSettings: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Theme: \(appStore.selectedTheme.displayName)")
+                .primaryTextStyle()
+
+            Picker("Theme", selection: $appStore.selectedTheme) {
+                ForEach(AppThemeChoice.allCases) { choice in
+                    Text(choice.displayName)
+                        .tag(choice)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    var timerRows: [(title: String, focusBinding: Binding<Int>, breakBinding: Binding<Int>, cyclesBinding: Binding<Int>)] {
+        [
+            (
+                "Focused Drill",
+                binding(for: \.focusedDrillFocusMinutes),
+                binding(for: \.focusedDrillBreakMinutes),
+                binding(for: \.focusedDrillCycles)
+            ),
+            (
+                "Concept Block",
+                binding(for: \.conceptBlockFocusMinutes),
+                binding(for: \.conceptBlockBreakMinutes),
+                binding(for: \.conceptBlockCycles)
+            ),
+            (
+                "Deep Build",
+                binding(for: \.deepBuildFocusMinutes),
+                binding(for: \.deepBuildBreakMinutes),
+                binding(for: \.deepBuildCycles)
+            ),
+            (
+                "Simulation Burst",
+                binding(for: \.simulationBurstFocusMinutes),
+                binding(for: \.simulationBurstBreakMinutes),
+                binding(for: \.simulationBurstCycles)
+            )
+        ]
     }
 
     func timerRow(
@@ -125,25 +171,28 @@ private extension SettingsView {
         breakBinding: Binding<Int>,
         cyclesBinding: Binding<Int>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.subheadline)
+                .font(AppFonts.headline)
+                .primaryTextStyle()
 
             HStack(spacing: 16) {
                 Stepper(value: focusBinding, in: 1...240) {
                     Text("Focus: \(focusBinding.wrappedValue) min")
+                        .secondaryTextStyle()
                 }
 
                 Stepper(value: breakBinding, in: 0...120) {
                     Text("Break: \(breakBinding.wrappedValue) min")
+                        .secondaryTextStyle()
                 }
 
                 Stepper(value: cyclesBinding, in: 1...10) {
                     Text("Cycles: \(cyclesBinding.wrappedValue)")
+                        .secondaryTextStyle()
                 }
             }
         }
-        .padding(.vertical, 6)
     }
 
     func binding(for keyPath: WritableKeyPath<TimerPreferences, Int>) -> Binding<Int> {
@@ -171,6 +220,16 @@ private extension SettingsView {
                 appStore.revisionSettings[keyPath: keyPath] = max(0.1, newValue)
             }
         )
+    }
+
+    func sectionCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .sectionTitleStyle()
+
+            content()
+        }
+        .cardBackground()
     }
 
     var numberFormatter: NumberFormatter {
