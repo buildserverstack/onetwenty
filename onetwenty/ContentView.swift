@@ -115,14 +115,6 @@ struct TodayView: View {
     @EnvironmentObject var appStore: AppStore
     @EnvironmentObject var timerManager: TimerManager
     @State private var selectedBlock: Block?
-    @State private var mlInsight1: String = ""
-    @State private var mlInsight2: String = ""
-    @State private var dsaPattern: String = ""
-    @State private var communicationLearning: String = ""
-    @State private var mistake: String = ""
-    @State private var questionForTomorrow: String = ""
-    @State private var rating: Int = 3
-    @State private var weaknessTagsText: String = ""
 
     var body: some View {
         GeometryReader { proxy in
@@ -150,8 +142,8 @@ struct TodayView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        reflectionSection(for: currentDay)
-                            .cardBackground()
+                        ReflectionCardView(dayPlan: currentDay)
+                            .environmentObject(appStore)
                     } else {
                         Text("Select or create a day plan to get started.")
                             .font(.title3)
@@ -246,97 +238,6 @@ struct TodayView: View {
         }
     }
 
-    @ViewBuilder
-    private func reflectionSection(for dayPlan: DayPlan) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Reflection & Rating")
-                .font(AppFonts.title)
-                .primaryTextStyle()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ML / LLM / DL Insights")
-                    .sectionTitleStyle()
-                VoiceDictationField(text: $mlInsight1, placeholder: "ML / LLM insight #1")
-                VoiceDictationField(text: $mlInsight2, placeholder: "ML / LLM insight #2")
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("DSA Pattern")
-                    .sectionTitleStyle()
-                TextField("Pattern name", text: $dsaPattern)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Communication / Interview Learning")
-                    .sectionTitleStyle()
-                VoiceDictationField(text: $communicationLearning, placeholder: "What improved?")
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Mistake")
-                    .sectionTitleStyle()
-                VoiceDictationField(text: $mistake, placeholder: "What went wrong?")
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Question for Tomorrow")
-                    .sectionTitleStyle()
-                TextField("What to clarify next?", text: $questionForTomorrow)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Weakness Tags (comma-separated)")
-                    .sectionTitleStyle()
-                TextField("e.g., arrays, gradient descent", text: $weaknessTagsText)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            HStack {
-                Text("Rating")
-                    .sectionTitleStyle()
-                Stepper(value: $rating, in: 1...5) {
-                    Text("\(rating)")
-                        .primaryTextStyle()
-                }
-            }
-
-            Button {
-                let tags = weaknessTagsText
-                    .split(separator: ",")
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-
-                let insights = [mlInsight1, mlInsight2]
-                appStore.saveReflection(
-                    for: dayPlan,
-                    mlInsights: insights,
-                    dsaPattern: dsaPattern,
-                    communicationLearning: communicationLearning,
-                    mistake: mistake,
-                    questionForTomorrow: questionForTomorrow,
-                    rating: rating,
-                    weaknessTags: tags
-                )
-
-                mlInsight1 = ""
-                mlInsight2 = ""
-                dsaPattern = ""
-                communicationLearning = ""
-                mistake = ""
-                questionForTomorrow = ""
-                weaknessTagsText = ""
-                rating = 3
-            } label: {
-                Text("Save Reflection & Mark Day Complete")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AppColors.accent)
-        }
-        .padding(.top, 12)
-    }
 }
 
 struct RoadmapView: View {
