@@ -177,17 +177,17 @@ private extension SettingsView {
                 .primaryTextStyle()
 
             HStack(spacing: 16) {
-                Stepper(value: focusBinding, in: 1...240) {
+                Stepper(value: focusBinding, in: 5...240, step: 5) {
                     Text("Focus: \(focusBinding.wrappedValue) min")
                         .secondaryTextStyle()
                 }
 
-                Stepper(value: breakBinding, in: 0...120) {
+                Stepper(value: breakBinding, in: 0...120, step: 5) {
                     Text("Break: \(breakBinding.wrappedValue) min")
                         .secondaryTextStyle()
                 }
 
-                Stepper(value: cyclesBinding, in: 1...10) {
+                Stepper(value: cyclesBinding, in: 1...10, step: 1) {
                     Text("Cycles: \(cyclesBinding.wrappedValue)")
                         .secondaryTextStyle()
                 }
