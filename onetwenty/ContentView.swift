@@ -562,6 +562,17 @@ struct BlockDetailView: View {
 }
 
 extension BlockType {
+    var displayName: String {
+        switch self {
+        case .dsa: return "DSA"
+        case .ml: return "ML / LLM"
+        case .project: return "Project"
+        case .mlops: return "MLOps"
+        case .communication: return "Communication"
+        case .reflection: return "Reflection"
+        }
+    }
+
     var systemImageName: String {
         switch self {
         case .dsa: return "circle.grid.cross"
