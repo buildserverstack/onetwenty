@@ -81,43 +81,43 @@ private extension SettingsView {
                 .font(AppFonts.body)
                 .secondaryTextStyle()
 
-            Stepper(value: revisionBinding(for: \.dailyMaxCards), in: 1...100) {
-                Text("Daily max cards: \(appStore.revisionSettings.dailyMaxCards)")
-                    .primaryTextStyle()
-            }
-            Text("Caps how many review cards appear each day.")
-                .font(AppFonts.caption)
-                .secondaryTextStyle()
-
-            Stepper(value: revisionBinding(for: \.initialIntervalDays), in: 1...30) {
-                Text("Initial interval: \(appStore.revisionSettings.initialIntervalDays) day(s)")
-                    .primaryTextStyle()
-            }
-            Text("Base spacing used for new cards before multipliers are applied.")
-                .font(AppFonts.caption)
-                .secondaryTextStyle()
-
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Hard multiplier")
+            VStack(alignment: .leading, spacing: 6) {
+                Stepper(value: revisionIntBinding(for: \.dailyMaxCards, range: 1...50), in: 1...50) {
+                    Text("Daily max cards: \(appStore.revisionSettings.dailyMaxCards)")
                         .primaryTextStyle()
-                    TextField("Hard multiplier", value: revisionBinding(for: \.hardIntervalMultiplier), formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Easy multiplier")
-                        .primaryTextStyle()
-                    TextField("Easy multiplier", value: revisionBinding(for: \.easyIntervalMultiplier), formatter: numberFormatter)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
-                }
+                Text("Cards per day shown in your queue.")
+                    .font(AppFonts.caption)
+                    .secondaryTextStyle()
             }
 
-            Text("Hard lowers the interval, easy raises it—tweak to match your pacing.")
-                .font(AppFonts.caption)
-                .secondaryTextStyle()
+            VStack(alignment: .leading, spacing: 6) {
+                Stepper(value: revisionIntBinding(for: \.initialIntervalDays, range: 1...14), in: 1...14) {
+                    Text("Initial interval: \(appStore.revisionSettings.initialIntervalDays) day(s)")
+                        .primaryTextStyle()
+                }
+                Text("First review after this many days.")
+                    .font(AppFonts.caption)
+                    .secondaryTextStyle()
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Hard multiplier")
+                    .primaryTextStyle()
+                Slider(value: revisionDoubleBinding(for: \.hardIntervalMultiplier, range: 0.1...3.0), in: 0.1...3.0, step: 0.1)
+                Text(String(format: "%.1fx – used when you tap Hard", appStore.revisionSettings.hardIntervalMultiplier))
+                    .font(AppFonts.caption)
+                    .secondaryTextStyle()
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Easy multiplier")
+                    .primaryTextStyle()
+                Slider(value: revisionDoubleBinding(for: \.easyIntervalMultiplier, range: 0.1...3.0), in: 0.1...3.0, step: 0.1)
+                Text(String(format: "%.1fx – used when you tap Done", appStore.revisionSettings.easyIntervalMultiplier))
+                    .font(AppFonts.caption)
+                    .secondaryTextStyle()
+            }
         }
     }
 
@@ -204,20 +204,21 @@ private extension SettingsView {
         )
     }
 
-    func revisionBinding(for keyPath: WritableKeyPath<RevisionSettings, Int>) -> Binding<Int> {
+    func revisionIntBinding(for keyPath: WritableKeyPath<RevisionSettings, Int>, range: ClosedRange<Int>) -> Binding<Int> {
         Binding(
             get: { appStore.revisionSettings[keyPath: keyPath] },
             set: { newValue in
-                appStore.revisionSettings[keyPath: keyPath] = max(0, newValue)
+                appStore.revisionSettings[keyPath: keyPath] = min(max(range.lowerBound, newValue), range.upperBound)
             }
         )
     }
 
-    func revisionBinding(for keyPath: WritableKeyPath<RevisionSettings, Double>) -> Binding<Double> {
+    func revisionDoubleBinding(for keyPath: WritableKeyPath<RevisionSettings, Double>, range: ClosedRange<Double>) -> Binding<Double> {
         Binding(
             get: { appStore.revisionSettings[keyPath: keyPath] },
             set: { newValue in
-                appStore.revisionSettings[keyPath: keyPath] = max(0.1, newValue)
+                let clamped = min(max(range.lowerBound, newValue), range.upperBound)
+                appStore.revisionSettings[keyPath: keyPath] = clamped
             }
         )
     }
