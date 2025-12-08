@@ -34,6 +34,7 @@ struct DayPlan: Identifiable, Codable {
     var phase: String
     var title: String
     var blocks: [Block]
+    var resources: [ResourceLink] = []
 }
 
 struct Block: Identifiable, Codable {

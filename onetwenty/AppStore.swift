@@ -110,6 +110,183 @@ final class AppStore: ObservableObject {
         projects = [sampleProject]
     }
 
+    /// Imports day plans from a CSV file. Expected headers (case-insensitive):
+    /// dayNumber, date (optional), phase, title, dsaTopic, mlTopic, projectWork,
+    /// mlopsFocus, communicationFocus, revisionTasks, resources.
+    /// Each row becomes a DayPlan with blocks generated from the per-topic columns.
+    func loadFromCSV(url: URL) throws {
+        let content = try String(contentsOf: url)
+        let rows = content.split(whereSeparator: { $0.isNewline })
+
+        guard let header = rows.first else { return }
+        let headers = parseColumns(from: String(header))
+        let headerIndex = headers.enumerated().reduce(into: [String: Int]()) { dict, pair in
+            dict[pair.element.lowercased()] = pair.offset
+        }
+
+        var importedPlans: [DayPlan] = []
+
+        for line in rows.dropFirst() {
+            let columns = parseColumns(from: String(line))
+            if columns.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
+                continue
+            }
+
+            guard let dayNumberValue = value(for: "daynumber", in: columns, headerIndex: headerIndex),
+                  let dayNumber = Int(dayNumberValue.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                continue
+            }
+
+            let phase = value(for: "phase", in: columns, headerIndex: headerIndex) ?? ""
+            let title = value(for: "title", in: columns, headerIndex: headerIndex) ?? "Day \(dayNumber)"
+            let dayPlanId = UUID()
+            var blocks: [Block] = []
+
+            if let dsa = value(for: "dsatopic", in: columns, headerIndex: headerIndex), !dsa.isEmpty {
+                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .dsa, title: dsa, description: dsa))
+            }
+
+            if let ml = value(for: "mltopic", in: columns, headerIndex: headerIndex), !ml.isEmpty {
+                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .ml, title: ml, description: ml))
+            }
+
+            if let project = value(for: "projectwork", in: columns, headerIndex: headerIndex), !project.isEmpty {
+                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .project, title: project, description: project))
+            }
+
+            if let mlops = value(for: "mlopsfocus", in: columns, headerIndex: headerIndex), !mlops.isEmpty {
+                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .mlops, title: mlops, description: mlops))
+            }
+
+            if let comms = value(for: "communicationfocus", in: columns, headerIndex: headerIndex), !comms.isEmpty {
+                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .communication, title: comms, description: comms))
+            }
+
+            if let revision = value(for: "revisiontasks", in: columns, headerIndex: headerIndex), !revision.isEmpty {
+                blocks.append(createRevisionBlock(from: revision, dayPlanId: dayPlanId))
+            }
+
+            let resourcesString = value(for: "resources", in: columns, headerIndex: headerIndex) ?? ""
+            let resources = parseResources(from: resourcesString)
+
+            let plan = DayPlan(
+                id: dayPlanId,
+                dayNumber: dayNumber,
+                phase: phase,
+                title: title,
+                blocks: blocks,
+                resources: resources
+            )
+
+            importedPlans.append(plan)
+        }
+
+        if !importedPlans.isEmpty {
+            dayPlans = importedPlans.sorted { $0.dayNumber < $1.dayNumber }
+            currentDay = importedPlans.sorted { $0.dayNumber < $1.dayNumber }.first
+        }
+    }
+
+    // MARK: - CSV Helpers
+
+    private func parseColumns(from line: String) -> [String] {
+        // Simple CSV splitter that respects quoted values
+        var columns: [String] = []
+        var current = ""
+        var insideQuotes = false
+
+        for character in line {
+            if character == "\"" {
+                insideQuotes.toggle()
+            } else if character == "," && !insideQuotes {
+                columns.append(current)
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        columns.append(current)
+
+        return columns.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    private func value(for key: String, in columns: [String], headerIndex: [String: Int]) -> String? {
+        guard let index = headerIndex[key.lowercased()], index < columns.count else { return nil }
+        return columns[index]
+    }
+
+    private func createBlock(id: UUID, dayPlanId: UUID, type: BlockType, title: String, description: String) -> Block {
+        let task = Task(id: UUID(), blockId: id, title: title, isDone: false)
+        return Block(
+            id: id,
+            dayPlanId: dayPlanId,
+            type: type,
+            title: title,
+            description: description,
+            defaultMode: defaultMode(for: type),
+            isCompleted: false,
+            tasks: [task]
+        )
+    }
+
+    private func createRevisionBlock(from value: String, dayPlanId: UUID) -> Block {
+        let blockId = UUID()
+        let tasks = value
+            .split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .map { Task(id: UUID(), blockId: blockId, title: $0, isDone: false) }
+
+        let description = tasks.isEmpty ? value : "Revision tasks"
+
+        return Block(
+            id: blockId,
+            dayPlanId: dayPlanId,
+            type: .reflection,
+            title: "Revision",
+            description: description,
+            defaultMode: .focusedDrill,
+            isCompleted: false,
+            tasks: tasks
+        )
+    }
+
+    private func defaultMode(for type: BlockType) -> FocusMode {
+        switch type {
+        case .dsa: return .focusedDrill
+        case .ml: return .conceptBlock
+        case .project: return .deepBuild
+        case .mlops: return .simulationBurst
+        case .communication: return .conceptBlock
+        case .reflection: return .focusedDrill
+        }
+    }
+
+    private func parseResources(from value: String) -> [ResourceLink] {
+        let entries = value.split(separator: ";").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        var resources: [ResourceLink] = []
+
+        for entry in entries {
+            let parts = entry.split(separator: "|", maxSplits: 1).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            let label: String
+            let urlString: String
+
+            if parts.count == 2 {
+                label = parts[0].isEmpty ? "Resource" : parts[0]
+                urlString = parts[1]
+            } else {
+                urlString = parts[0]
+                label = URL(string: urlString)?.host ?? "Resource"
+            }
+
+            guard let url = URL(string: urlString) else { continue }
+            let resource = ResourceLink(id: UUID(), label: label, url: url, tags: [])
+            resources.append(resource)
+        }
+
+        return resources
+    }
+
     func goToDay(_ dayNumber: Int) {
         currentDay = dayPlans.first { $0.dayNumber == dayNumber }
     }
