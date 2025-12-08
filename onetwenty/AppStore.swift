@@ -136,6 +136,8 @@ final class AppStore: ObservableObject {
     @Published var revisionSettings: RevisionSettings
     @Published var selectedTheme: ThemeChoice
 
+    private var exportBookmarkData: Data?
+
     init(
         dayPlans: [DayPlan] = [],
         currentDay: DayPlan? = nil,
@@ -722,14 +724,19 @@ final class AppStore: ObservableObject {
         exportProgressIfPossible(for: dayPlan)
     }
 
-    /// Updates the export destination and validates it is writable.
+    /// Updates the export destination, captures a security-scoped bookmark, and validates writability.
     func updateExportDestination(_ url: URL) throws {
         exportCSVURL = url
-        _ = try resolvedExportURL()
+
+        let bookmark = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+        exportBookmarkData = bookmark
+
+        _ = try resolvedExportURLWithAccess()
     }
 
     func exportDayProgress(for dayPlan: DayPlan, status: DayStatusColor? = nil) throws {
-        let exportURL = try resolvedExportURL()
+        let (exportURL, accessStarted) = try resolvedExportURLWithAccess()
+        defer { if accessStarted { exportURL.stopAccessingSecurityScopedResource() } }
 
         let reflectionsForDay = getReflections(for: dayPlan.id)
         let chosenStatus = status ?? determineStatusColor(for: dayPlan, reflectionCount: reflectionsForDay.count)
@@ -829,7 +836,8 @@ final class AppStore: ObservableObject {
 
     @discardableResult
     func exportRange(start: Int, end: Int) throws -> Int {
-        _ = try resolvedExportURL()
+        let (resolvedURL, accessStarted) = try resolvedExportURLWithAccess()
+        defer { if accessStarted { resolvedURL.stopAccessingSecurityScopedResource() } }
         guard start <= end else { throw ExportRangeError.invalidRange }
 
         let plansInRange = dayPlans
@@ -855,11 +863,21 @@ final class AppStore: ObservableObject {
         }
     }
 
-    /// Validates or establishes a writable export URL.
-    /// - Returns: A URL guaranteed to be outside the app bundle and in a writable directory.
-    private func resolvedExportURL() throws -> URL {
+    /// Resolves a writable export URL and starts security-scoped access if needed.
+    /// - Returns: URL plus a flag indicating whether access should be stopped by the caller.
+    private func resolvedExportURLWithAccess() throws -> (URL, Bool) {
         let defaultURL = defaultExportURL()
         var target = exportCSVURL ?? defaultURL
+
+        if let bookmark = exportBookmarkData {
+            var stale = false
+            if let securedURL = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope], bookmarkDataIsStale: &stale) {
+                target = securedURL
+                if stale {
+                    exportBookmarkData = try? securedURL.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+                }
+            }
+        }
 
         // Avoid writing inside the app bundle (read-only on macOS).
         if target.isInsideMainBundle {
@@ -873,12 +891,25 @@ final class AppStore: ObservableObject {
             try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         }
 
-        if !fm.isWritableFile(atPath: directory.path) {
+        let accessStarted = target.startAccessingSecurityScopedResource()
+
+        var directoryWritable = fm.isWritableFile(atPath: directory.path)
+        if !directoryWritable {
+            let testURL = directory.appendingPathComponent(".aicoach_write_test")
+            let testData = Data("ping".utf8)
+            if (try? testData.write(to: testURL)) != nil {
+                try? fm.removeItem(at: testURL)
+                directoryWritable = true
+            }
+        }
+
+        if !directoryWritable {
+            if accessStarted { target.stopAccessingSecurityScopedResource() }
             throw ExportRangeError.exportLocationNotWritable
         }
 
         exportCSVURL = target
-        return target
+        return (target, accessStarted)
     }
 
     /// Default export location in the user's Documents directory.
