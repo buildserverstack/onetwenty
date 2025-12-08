@@ -628,6 +628,18 @@ final class AppStore: ObservableObject {
         return due
     }
 
+    func upcomingReviewItems(after date: Date = Date(), type: ReviewType? = nil) -> [ReviewCard] {
+        let start = Calendar.current.startOfDay(for: date)
+        return reviewCards
+            .filter { card in
+                let cardDay = Calendar.current.startOfDay(for: card.dueDate)
+                guard cardDay > start else { return false }
+                if let type { return card.type == type }
+                return true
+            }
+            .sorted { $0.dueDate < $1.dueDate }
+    }
+
     func handleReviewResult(card: ReviewCard, hard: Bool) {
         guard let index = reviewCards.firstIndex(where: { $0.id == card.id }) else { return }
 

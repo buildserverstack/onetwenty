@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ProgressView: View {
     @EnvironmentObject var appStore: AppStore
+    @State private var selectedFilter: ReviewFilter = .all
+    @State private var showFutureCards = false
 
     private var completedDaysCount: Int {
         let ids = Set(appStore.reflections.map { $0.dayPlanId })
@@ -52,7 +54,14 @@ struct ProgressView: View {
     private var complianceText: String { String(format: "%.0f%%", complianceRate * 100) }
 
     private var dueCards: [ReviewCard] {
-        appStore.reviewItemsDueToday()
+        let items = appStore.reviewItemsDueToday()
+        guard let type = selectedFilter.reviewType else { return items }
+        return items.filter { $0.type == type }
+    }
+
+    private var futureCards: [ReviewCard] {
+        let type = selectedFilter.reviewType
+        return appStore.upcomingReviewItems(type: type)
     }
 
     var body: some View {
@@ -110,6 +119,8 @@ struct ProgressView: View {
             Text("Today's Revision Queue")
                 .sectionTitleStyle()
 
+            filterControls
+
             if dueCards.isEmpty {
                 Text("No review cards due today.")
                     .secondaryTextStyle()
@@ -117,6 +128,24 @@ struct ProgressView: View {
                 VStack(spacing: 10) {
                     ForEach(dueCards) { card in
                         revisionCard(card)
+                    }
+                }
+            }
+
+            if showFutureCards {
+                Divider().background(AppColors.border)
+                Text("Upcoming")
+                    .font(AppFonts.headline)
+                    .primaryTextStyle()
+
+                if futureCards.isEmpty {
+                    Text("No upcoming cards queued.")
+                        .secondaryTextStyle()
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(futureCards) { card in
+                            revisionCard(card)
+                        }
                     }
                 }
             }
@@ -165,6 +194,24 @@ struct ProgressView: View {
                 .stroke(AppColors.border, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var filterControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Filter", selection: $selectedFilter) {
+                ForEach(ReviewFilter.allCases) { filter in
+                    Text(filter.title)
+                        .tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Toggle("Show future cards", isOn: $showFutureCards)
+                .toggleStyle(.switch)
+                .font(AppFonts.body)
+                .primaryTextStyle()
+        }
+        .tint(AppColors.accent)
     }
 
     private var breakSection: some View {
@@ -258,4 +305,34 @@ struct ProgressView: View {
     ProgressView()
         .environmentObject(AppStore())
         .environmentObject(TimerManager())
+}
+
+private enum ReviewFilter: String, CaseIterable, Identifiable {
+    case all
+    case patterns
+    case ml
+    case projects
+    case behavioral
+
+    var id: String { rawValue }
+
+    var reviewType: ReviewType? {
+        switch self {
+        case .all: return nil
+        case .patterns: return .pattern
+        case .ml: return .mlTopic
+        case .projects: return .project
+        case .behavioral: return .behavioral
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .patterns: return "Patterns"
+        case .ml: return "ML"
+        case .projects: return "Projects"
+        case .behavioral: return "Behavioral"
+        }
+    }
 }
