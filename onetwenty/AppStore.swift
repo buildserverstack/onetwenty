@@ -255,23 +255,33 @@ final class AppStore: ObservableObject {
             var blocks: [Block] = []
 
             if let dsa = value(for: "dsatopic", in: columns, headerIndex: headerIndex), !dsa.isEmpty {
-                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .dsa, title: dsa, description: dsa))
+                let blockId = UUID()
+                let tasks = parseTasks(for: "dsatasks", blockId: blockId, columns: columns, headerIndex: headerIndex)
+                blocks.append(createBlock(id: blockId, dayPlanId: dayPlanId, type: .dsa, title: dsa, description: dsa, tasks: tasks))
             }
 
             if let ml = value(for: "mltopic", in: columns, headerIndex: headerIndex), !ml.isEmpty {
-                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .ml, title: ml, description: ml))
+                let blockId = UUID()
+                let tasks = parseTasks(for: "mltasks", blockId: blockId, columns: columns, headerIndex: headerIndex)
+                blocks.append(createBlock(id: blockId, dayPlanId: dayPlanId, type: .ml, title: ml, description: ml, tasks: tasks))
             }
 
             if let project = value(for: "projectwork", in: columns, headerIndex: headerIndex), !project.isEmpty {
-                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .project, title: project, description: project))
+                let blockId = UUID()
+                let tasks = parseTasks(for: "projecttasks", blockId: blockId, columns: columns, headerIndex: headerIndex)
+                blocks.append(createBlock(id: blockId, dayPlanId: dayPlanId, type: .project, title: project, description: project, tasks: tasks))
             }
 
             if let mlops = value(for: "mlopsfocus", in: columns, headerIndex: headerIndex), !mlops.isEmpty {
-                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .mlops, title: mlops, description: mlops))
+                let blockId = UUID()
+                let tasks = parseTasks(for: "mlopstasks", blockId: blockId, columns: columns, headerIndex: headerIndex)
+                blocks.append(createBlock(id: blockId, dayPlanId: dayPlanId, type: .mlops, title: mlops, description: mlops, tasks: tasks))
             }
 
             if let comms = value(for: "communicationfocus", in: columns, headerIndex: headerIndex), !comms.isEmpty {
-                blocks.append(createBlock(id: UUID(), dayPlanId: dayPlanId, type: .communication, title: comms, description: comms))
+                let blockId = UUID()
+                let tasks = parseTasks(for: "communicationtasks", blockId: blockId, columns: columns, headerIndex: headerIndex)
+                blocks.append(createBlock(id: blockId, dayPlanId: dayPlanId, type: .communication, title: comms, description: comms, tasks: tasks))
             }
 
             if let revision = value(for: "revisiontasks", in: columns, headerIndex: headerIndex), !revision.isEmpty {
@@ -328,8 +338,7 @@ final class AppStore: ObservableObject {
         return columns[index]
     }
 
-    private func createBlock(id: UUID, dayPlanId: UUID, type: BlockType, title: String, description: String) -> Block {
-        let task = Task(id: UUID(), blockId: id, title: title, isDone: false)
+    private func createBlock(id: UUID, dayPlanId: UUID, type: BlockType, title: String, description: String, tasks: [Task] = []) -> Block {
         return Block(
             id: id,
             dayPlanId: dayPlanId,
@@ -338,7 +347,7 @@ final class AppStore: ObservableObject {
             description: description,
             defaultMode: defaultMode(for: type),
             isCompleted: false,
-            tasks: [task]
+            tasks: tasks
         )
     }
 
@@ -410,6 +419,18 @@ final class AppStore: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: raw)
+    }
+
+    private func parseTasks(for key: String, blockId: UUID, columns: [String], headerIndex: [String: Int]) -> [Task] {
+        guard let raw = value(for: key, in: columns, headerIndex: headerIndex), !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return []
+        }
+
+        return raw
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .map { Task(id: UUID(), blockId: blockId, title: $0, isDone: false) }
     }
 
     func goToDay(_ dayNumber: Int) {
