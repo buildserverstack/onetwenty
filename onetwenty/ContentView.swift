@@ -479,6 +479,10 @@ struct BlockDetailView: View {
                                     .secondaryTextStyle()
                             }
                         }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppColors.surfaceElevated)
+                        .cornerRadius(10)
                     }
                 }
             }

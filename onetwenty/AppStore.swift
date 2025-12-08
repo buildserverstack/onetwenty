@@ -309,6 +309,12 @@ final class AppStore: ObservableObject {
             let resourcesString = value(for: "resources", in: columns, headerIndex: headerIndex) ?? ""
             let resources = parseResources(from: resourcesString)
 
+            if !resources.isEmpty {
+                for index in blocks.indices {
+                    blocks[index].resources = resources
+                }
+            }
+
             let plan = DayPlan(
                 id: dayPlanId,
                 dayNumber: dayNumber,
