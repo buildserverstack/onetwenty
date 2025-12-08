@@ -69,6 +69,10 @@ struct AICoachMacApp: App {
                         let dayPlanId = appStore.currentDay?.id ?? UUID()
                         _ = timerManager.stopAndBuildSession(dayPlanId: dayPlanId)
                     }
+
+                    Button("Quick Capture") {
+                        appStore.toggleQuickCapture()
+                    }
                 }
             }
             .padding()
