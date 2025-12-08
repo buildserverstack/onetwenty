@@ -163,47 +163,10 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
                 ForEach(currentDay.blocks, id: \.id) { block in
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(block.title)
-                                    .primaryTextStyle()
-                                    .font(.headline)
-                                Text(block.type.displayName)
-                                    .secondaryTextStyle()
-                                    .font(.caption)
-                            }
-
-                            Spacer()
-
-                            if block.isCompleted {
-                                Text("Done")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundColor(AppColors.background)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(AppColors.accent)
-                                    .clipShape(Capsule())
-                            }
+                    blockCard(for: block)
+                        .onTapGesture {
+                            selectedBlock = block
                         }
-
-                        if !block.description.isEmpty {
-                            Text(block.description)
-                                .secondaryTextStyle()
-                                .font(.subheadline)
-                        }
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(selectedBlock?.id == block.id ? AppColors.surfaceElevated : AppColors.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(selectedBlock?.id == block.id ? AppColors.accent : AppColors.border, lineWidth: 1)
-                    )
-                    .cornerRadius(10)
-                    .onTapGesture {
-                        selectedBlock = block
-                    }
                 }
             }
             .padding(8)
@@ -219,6 +182,54 @@ struct TodayView: View {
         }
         .background(AppColors.surfaceElevated.opacity(0.4))
         .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private func blockCard(for block: Block) -> some View {
+        let isSelected = selectedBlock?.id == block.id
+
+        VStack(alignment: .leading, spacing: 6) {
+            blockCardHeader(for: block)
+
+            if !block.description.isEmpty {
+                Text(block.description)
+                    .secondaryTextStyle()
+                    .font(.subheadline)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isSelected ? AppColors.surfaceElevated : AppColors.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? AppColors.accent : AppColors.border, lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    private func blockCardHeader(for block: Block) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(block.title)
+                    .primaryTextStyle()
+                    .font(.headline)
+                Text(block.type.displayName)
+                    .secondaryTextStyle()
+                    .font(.caption)
+            }
+
+            Spacer()
+
+            if block.isCompleted {
+                Text("Done")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(AppColors.background)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppColors.accent)
+                    .clipShape(Capsule())
+            }
+        }
     }
 
     private func detailPanel(for currentDay: DayPlan) -> some View {
