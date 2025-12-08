@@ -1,10 +1,10 @@
 import SwiftUI
 
 private enum NotebookSection: String, CaseIterable, Identifiable {
-    case patterns = "DSA Patterns"
-    case mlIntuition = "ML / LLM Intuition"
+    case patterns = "Patterns"
+    case mlIntuition = "ML / LLM"
     case projects = "Projects"
-    case behavioral = "Behavioral Stories"
+    case behavioral = "Behavioral"
 
     var id: String { rawValue }
     var title: String { rawValue }
@@ -15,16 +15,11 @@ struct NotebooksRootView: View {
     @State private var selection: NotebookSection = .patterns
 
     var body: some View {
-        VStack(alignment: .leading) {
-            Picker("Notebook", selection: $selection) {
-                ForEach(NotebookSection.allCases) { section in
-                    Text(section.title).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding([.top, .horizontal])
-
+        VStack(spacing: 12) {
+            tabBar
             Divider()
+                .overlay(AppColors.border)
+                .padding(.horizontal)
 
             switch selection {
             case .patterns:
@@ -37,6 +32,34 @@ struct NotebooksRootView: View {
                 BehavioralStoriesView()
             }
         }
+        .padding(.top, 12)
+        .background(AppColors.background.ignoresSafeArea())
+    }
+
+    private var tabBar: some View {
+        HStack(spacing: 10) {
+            ForEach(NotebookSection.allCases) { section in
+                Button {
+                    selection = section
+                } label: {
+                    Text(section.title)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .font(.headline)
+                        .foregroundColor(selection == section ? AppColors.textPrimary : AppColors.textSecondary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(selection == section ? AppColors.accent : AppColors.surface)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(AppColors.border, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal)
     }
 }
 
@@ -49,87 +72,167 @@ struct PatternNotebookView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading) {
-                HStack {
-                    Text("Patterns")
-                        .font(.headline)
-                    Spacer()
-                    Button("New Pattern") {
-                        let note = PatternNote(
-                            id: UUID(),
-                            name: "New Pattern",
-                            summary: "Describe the approach",
-                            decisionRules: "When to use it",
-                            smells: ["Common pitfalls"],
-                            templateCode: "// template code",
-                            edgeCases: ["Edge case"],
-                            lastReviewed: nil
-                        )
-                        appStore.addPatternNote(note)
-                        selectedNoteID = note.id
-                    }
-                }
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 900
+            ScrollView {
+                adaptiveLayout(isCompact: isCompact)
+            }
+            .padding()
+            .background(AppColors.background)
+        }
+    }
 
-                List(appStore.patternNotes, selection: $selectedNoteID) { note in
-                    VStack(alignment: .leading) {
-                        Text(note.name)
-                            .font(.headline)
-                        Text(note.summary)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+    @ViewBuilder
+    private func adaptiveLayout(isCompact: Bool) -> some View {
+        if isCompact {
+            VStack(spacing: 16) {
+                patternList
+                patternDetail
+            }
+        } else {
+            HStack(alignment: .top, spacing: 16) {
+                patternList
+                    .frame(width: 340)
+                patternDetail
+            }
+        }
+    }
+
+    private var patternList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("DSA Patterns")
+                    .sectionTitleStyle()
+                Spacer()
+                Button {
+                    let note = PatternNote(
+                        id: UUID(),
+                        name: "New Pattern",
+                        summary: "Describe the approach",
+                        decisionRules: "When to use it",
+                        smells: ["Common pitfalls"],
+                        templateCode: "// template code",
+                        edgeCases: ["Edge case"],
+                        lastReviewed: nil
+                    )
+                    appStore.addPatternNote(note)
+                    selectedNoteID = note.id
+                } label: {
+                    Label("New Pattern", systemImage: "plus")
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(AppColors.accent)
+                        .foregroundColor(AppColors.textPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .frame(minWidth: 250)
+                .buttonStyle(.plain)
             }
 
-            Divider()
+            VStack(spacing: 10) {
+                ForEach(appStore.patternNotes) { note in
+                    Button {
+                        selectedNoteID = note.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(note.name)
+                                .sectionTitleStyle()
+                            Text(note.summary)
+                                .secondaryTextStyle()
+                                .lineLimit(2)
+                            if !note.smells.isEmpty {
+                                tagWrap(note.smells)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppColors.surface)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedNoteID == note.id ? AppColors.accent : AppColors.border, lineWidth: selectedNoteID == note.id ? 2 : 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
+    private var patternDetail: some View {
+        Group {
             if let note = selectedNote {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(note.name)
-                            .font(.title2)
-                        Text(note.summary)
-                            .font(.body)
+                    VStack(alignment: .leading, spacing: 16) {
+                        header(for: note)
+                        Divider().overlay(AppColors.border)
                         labeledSection(title: "Decision Rules", content: note.decisionRules)
                         labeledList(title: "Smells", items: note.smells)
                         labeledSection(title: "Template", content: note.templateCode)
                         labeledList(title: "Edge Cases", items: note.edgeCases)
                     }
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .cardBackground()
             } else {
                 Text("Select or create a pattern to view details.")
-                    .foregroundColor(.secondary)
-                    .padding()
+                    .secondaryTextStyle()
+                    .cardBackground()
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func header(for note: PatternNote) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(note.name)
+                .sectionTitleStyle()
+            Text(note.summary)
+                .secondaryTextStyle()
+        }
     }
 
     @ViewBuilder
     private func labeledSection(title: String, content: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.headline)
+                .primaryTextStyle()
             Text(content)
-                .font(.body)
+                .secondaryTextStyle()
         }
     }
 
     @ViewBuilder
     private func labeledList(title: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.headline)
+                .primaryTextStyle()
             if items.isEmpty {
                 Text("No items")
-                    .foregroundColor(.secondary)
+                    .secondaryTextStyle()
             } else {
                 ForEach(items, id: \.self) { item in
                     Text("• \(item)")
+                        .secondaryTextStyle()
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tagWrap(_ tags: [String]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(tags, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppColors.surfaceElevated)
+                    .foregroundColor(AppColors.textSecondary)
+                    .clipShape(Capsule())
             }
         }
     }
@@ -139,65 +242,103 @@ struct MLIntuitionView: View {
     @EnvironmentObject var appStore: AppStore
     @State private var selectedNoteID: UUID?
 
-    private var selectedNoteBinding: Binding<MLNote?> {
-        Binding<MLNote?> {
-            appStore.mlNotes.first { $0.id == selectedNoteID } ?? appStore.mlNotes.first
-        } set: { newValue in
-            guard let newValue else { return }
-            if let idx = appStore.mlNotes.firstIndex(where: { $0.id == newValue.id }) {
-                appStore.mlNotes[idx] = newValue
-            }
-        }
-    }
-
     private var selectedNote: MLNote? {
-        selectedNoteBinding.wrappedValue
+        appStore.mlNotes.first { $0.id == selectedNoteID } ?? appStore.mlNotes.first
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            List(selection: $selectedNoteID) {
-                ForEach(appStore.mlNotes) { note in
-                    VStack(alignment: .leading) {
-                        Text(note.title)
-                        Text(note.createdAt, style: .date)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 900
+            ScrollView {
+                if isCompact {
+                    VStack(spacing: 16) {
+                        mlList
+                        mlDetail
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 16) {
+                        mlList.frame(width: 320)
+                        mlDetail
                     }
                 }
             }
-            .frame(minWidth: 240)
+            .padding()
+            .background(AppColors.background)
+        }
+    }
 
-            Divider()
+    private var mlList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("ML / LLM Intuition")
+                .sectionTitleStyle()
+            VStack(spacing: 10) {
+                ForEach(appStore.mlNotes) { note in
+                    Button {
+                        selectedNoteID = note.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(note.title)
+                                .primaryTextStyle()
+                            Text(note.createdAt, style: .date)
+                                .font(.caption)
+                                .foregroundColor(AppColors.textSecondary)
+                            Text(note.details)
+                                .secondaryTextStyle()
+                                .lineLimit(2)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppColors.surface)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedNoteID == note.id ? AppColors.accent : AppColors.border, lineWidth: selectedNoteID == note.id ? 2 : 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            if var note = selectedNoteBinding.wrappedValue {
-                VStack(alignment: .leading, spacing: 12) {
-                    TextField("Title", text: Binding(get: { note.title }, set: { newValue in
-                        note.title = newValue
-                        selectedNoteBinding.wrappedValue = note
-                    }))
-                        .textFieldStyle(.roundedBorder)
+    private var mlDetail: some View {
+        Group {
+            if let note = selectedNote {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(note.title)
+                        .sectionTitleStyle()
                     Text("Created: \(note.createdAt.formatted(date: .abbreviated, time: .shortened))")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppColors.textSecondary)
                     VoiceDictationField(
                         text: Binding(get: { note.details }, set: { newValue in
-                            note.details = newValue
-                            selectedNoteBinding.wrappedValue = note
+                            update(note: note, details: newValue)
                         }),
                         placeholder: "Describe the ML / LLM intuition"
                     )
                     .frame(minHeight: 200)
-                    Spacer()
                 }
                 .padding()
+                .cardBackground()
             } else {
                 Text("Select a note to view details.")
-                    .foregroundColor(.secondary)
-                    .padding()
+                    .secondaryTextStyle()
+                    .cardBackground()
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func update(note: MLNote, details: String) {
+        if let idx = appStore.mlNotes.firstIndex(where: { $0.id == note.id }) {
+            var updated = note
+            updated.details = details
+            appStore.mlNotes[idx] = updated
+            selectedNoteID = note.id
+        }
     }
 }
 
@@ -215,65 +356,131 @@ struct ProjectsView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            List(appStore.projects, selection: $selectedProjectID) { project in
-                VStack(alignment: .leading) {
-                    Text(project.name)
-                        .font(.headline)
-                    Text("Entries: \(project.entries.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 960
+            ScrollView {
+                if isCompact {
+                    VStack(spacing: 16) {
+                        projectList
+                        projectDetail
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 16) {
+                        projectList.frame(width: 320)
+                        projectDetail
+                    }
                 }
             }
-            .frame(minWidth: 220)
+            .padding()
+            .background(AppColors.background)
+        }
+    }
 
-            Divider()
-
-            if let project = selectedProject {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(project.name)
-                            .font(.title2)
-                        Text(project.description)
-                            .font(.body)
-                        Text("Journal Entries")
-                            .font(.headline)
-                        ForEach(project.entries) { entry in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(entry.date, style: .date)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(entry.whatIDid)
-                                    .font(.body)
-                            }
-                            .padding(.vertical, 4)
-                            Divider()
+    private var projectList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Projects")
+                .sectionTitleStyle()
+            VStack(spacing: 10) {
+                ForEach(appStore.projects) { project in
+                    Button {
+                        selectedProjectID = project.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(project.name)
+                                .primaryTextStyle()
+                            Text(project.description)
+                                .secondaryTextStyle()
+                                .lineLimit(2)
+                            Text("Entries: \(project.entries.count)")
+                                .font(.caption)
+                                .foregroundColor(AppColors.textSecondary)
                         }
-
-                        entryForm(projectId: project.id)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppColors.surface)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedProjectID == project.id ? AppColors.accent : AppColors.border, lineWidth: selectedProjectID == project.id ? 2 : 1)
+                                )
+                        )
                     }
-                    .padding()
+                    .buttonStyle(.plain)
                 }
-            } else {
-                Text("Select a project to view details.")
-                    .foregroundColor(.secondary)
-                    .padding()
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var projectDetail: some View {
+        Group {
+            if let project = selectedProject {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(project.name)
+                        .sectionTitleStyle()
+                    Text(project.description)
+                        .secondaryTextStyle()
+                    Divider().overlay(AppColors.border)
+                    Text("Journal Entries")
+                        .primaryTextStyle()
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(project.entries.sorted(by: { $0.date > $1.date })) { entry in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(entry.date, style: .date)
+                                    .font(.caption)
+                                    .foregroundColor(AppColors.textSecondary)
+                                Text(entry.whatIDid)
+                                    .primaryTextStyle()
+                                if !entry.whatILearned.isEmpty {
+                                    Text("Learned: \(entry.whatILearned)")
+                                        .secondaryTextStyle()
+                                }
+                                if !entry.whatBroke.isEmpty {
+                                    Text("Broke: \(entry.whatBroke)")
+                                        .secondaryTextStyle()
+                                }
+                                if !entry.nextStep.isEmpty {
+                                    Text("Next: \(entry.nextStep)")
+                                        .secondaryTextStyle()
+                                }
+                            }
+                            .padding()
+                            .background(RoundedRectangle(cornerRadius: 10).fill(AppColors.surfaceElevated))
+                        }
+                    }
+
+                    Divider().overlay(AppColors.border)
+                    entryForm(projectId: project.id)
+                }
+                .padding()
+                .cardBackground()
+            } else {
+                Text("Select a project to view details.")
+                    .secondaryTextStyle()
+                    .cardBackground()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private func entryForm(projectId: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Add Entry")
-                .font(.headline)
+                .primaryTextStyle()
             DatePicker("Date", selection: $entryDate, displayedComponents: [.date])
+                .labelsHidden()
+                .padding(8)
+                .background(AppColors.surfaceElevated)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             VoiceDictationField(text: $entryWhatIDid, placeholder: "What I did")
             TextField("What I learned", text: $entryWhatILearned)
+                .textFieldStyle(.roundedBorder)
             VoiceDictationField(text: $entryWhatBroke, placeholder: "What broke")
             TextField("Next step", text: $entryNextStep)
-            Button("Save Entry") {
+                .textFieldStyle(.roundedBorder)
+            Button {
                 let entry = ProjectJournalEntry(
                     id: UUID(),
                     projectId: projectId,
@@ -289,8 +496,16 @@ struct ProjectsView: View {
                 entryWhatBroke = ""
                 entryNextStep = ""
                 entryDate = Date()
+            } label: {
+                Text("Save Entry")
+                    .bold()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(AppColors.accent)
+                    .foregroundColor(AppColors.textPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
         }
     }
 }
@@ -304,51 +519,107 @@ struct BehavioralStoriesView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            List(appStore.behavioralStories, selection: $selectedStoryID) { story in
-                VStack(alignment: .leading) {
-                    Text(story.question)
-                        .font(.headline)
-                    if let tag = story.tags.first {
-                        Text(tag)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 900
+            ScrollView {
+                if isCompact {
+                    VStack(spacing: 16) {
+                        storyList
+                        storyDetail
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 16) {
+                        storyList.frame(width: 320)
+                        storyDetail
                     }
                 }
             }
-            .frame(minWidth: 240)
+            .padding()
+            .background(AppColors.background)
+        }
+    }
 
-            Divider()
-
-            if let story = selectedStory {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        detailRow(label: "Question", value: story.question)
-                        detailRow(label: "Situation", value: story.situation)
-                        detailRow(label: "Task", value: story.task)
-                        detailRow(label: "Action", value: story.action)
-                        detailRow(label: "Result", value: story.result)
-                        detailRow(label: "Learning", value: story.learning)
-                        detailRow(label: "Tags", value: story.tags.joined(separator: ", "))
+    private var storyList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Behavioral Stories")
+                .sectionTitleStyle()
+            VStack(spacing: 10) {
+                ForEach(appStore.behavioralStories) { story in
+                    Button {
+                        selectedStoryID = story.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(story.question)
+                                .primaryTextStyle()
+                                .lineLimit(2)
+                            if !story.tags.isEmpty {
+                                tagWrap(story.tags)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppColors.surface)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedStoryID == story.id ? AppColors.accent : AppColors.border, lineWidth: selectedStoryID == story.id ? 2 : 1)
+                                )
+                        )
                     }
-                    .padding()
+                    .buttonStyle(.plain)
                 }
-            } else {
-                Text("Select a story to view details.")
-                    .foregroundColor(.secondary)
-                    .padding()
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var storyDetail: some View {
+        Group {
+            if let story = selectedStory {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(story.question)
+                        .sectionTitleStyle()
+                    detailRow(label: "Situation", value: story.situation)
+                    detailRow(label: "Task", value: story.task)
+                    detailRow(label: "Action", value: story.action)
+                    detailRow(label: "Result", value: story.result)
+                    detailRow(label: "Learning", value: story.learning)
+                    detailRow(label: "Tags", value: story.tags.joined(separator: ", "))
+                }
+                .padding()
+                .cardBackground()
+            } else {
+                Text("Select a story to view details.")
+                    .secondaryTextStyle()
+                    .cardBackground()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private func detailRow(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.headline)
+                .primaryTextStyle()
             Text(value)
-                .font(.body)
+                .secondaryTextStyle()
+        }
+    }
+
+    @ViewBuilder
+    private func tagWrap(_ tags: [String]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(tags, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppColors.surfaceElevated)
+                    .foregroundColor(AppColors.textSecondary)
+                    .clipShape(Capsule())
+            }
         }
     }
 }
