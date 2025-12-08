@@ -464,52 +464,110 @@ struct BlockDetailView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(workingBlock.title)
-                    .font(.title2)
-                    .primaryTextStyle()
-                Text(workingBlock.description)
-                    .secondaryTextStyle()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    summarySection
+
+                    Divider().background(AppColors.border)
+
+                    tasksSection
+
+                    Divider().background(AppColors.border)
+
+                    resourcesSection
+
+                    Divider().background(AppColors.border)
+
+                    timerSection
+                }
+                .cardBackground()
             }
-            .cardBackground()
-
-            tasksSection.cardBackground()
-            resourcesSection.cardBackground()
-            timerSection.cardBackground()
-
-            Spacer()
+            .padding()
         }
-        .padding()
         .background(AppColors.background)
     }
 
-    private var tasksSection: some View {
+    private var summarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                Text(workingBlock.title)
+                    .font(.title2)
+                    .primaryTextStyle()
+
+                Spacer()
+
+                Text(blockTypeLabel)
+                    .font(.caption)
+                    .secondaryTextStyle()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(AppColors.surfaceElevated)
+                    .clipShape(Capsule())
+            }
+
+            Text(workingBlock.description)
+                .secondaryTextStyle()
+        }
+    }
+
+    private var tasksSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Tasks")
                 .sectionTitleStyle()
-            ForEach($workingBlock.tasks, id: \.id) { $task in
-                Toggle(task.title, isOn: $task.isDone)
-                    .primaryTextStyle()
+
+            if workingBlock.tasks.isEmpty {
+                Text("No tasks for this block.")
+                    .secondaryTextStyle()
+            } else {
+                VStack(spacing: 8) {
+                    ForEach($workingBlock.tasks, id: \.id) { $task in
+                        HStack(alignment: .center, spacing: 10) {
+                            Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(task.isDone ? AppColors.accent : AppColors.textSecondary)
+                                .font(.title3)
+
+                            Text(task.title)
+                                .primaryTextStyle()
+
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(AppColors.surfaceElevated)
+                        .cornerRadius(10)
+                        .onTapGesture {
+                            task.isDone.toggle()
+                        }
+                    }
+                }
             }
         }
     }
 
     private var resourcesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Resources")
                 .sectionTitleStyle()
 
             let resources = availableResources
             if resources.isEmpty {
-                Text("No resources for this block.")
+                Text("No resources for this block yet.")
                     .secondaryTextStyle()
-                    .font(.subheadline)
             } else {
-                ForEach(resources) { resource in
-                    Link(resource.label, destination: resource.url)
-                        .font(.body)
-                        .primaryTextStyle()
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(resources) { resource in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Link(resource.label, destination: resource.url)
+                                .foregroundColor(AppColors.accent)
+                                .font(.body)
+
+                            if let host = resource.url.host {
+                                Text(host)
+                                    .font(.caption)
+                                    .secondaryTextStyle()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -523,49 +581,60 @@ struct BlockDetailView: View {
     }
 
     private var timerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Timer")
                 .sectionTitleStyle()
 
-            Picker("Mode", selection: $timerManager.mode) {
-                ForEach(FocusMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            HStack(spacing: 16) {
-                VStack(alignment: .leading) {
-                    Text(timerManager.state.label)
-                        .font(.caption)
-                        .secondaryTextStyle()
-                    Text(formattedTime(timerManager.remainingSeconds))
-                        .font(.title2)
-                        .monospacedDigit()
-                        .primaryTextStyle()
-                }
-
-                Spacer()
-
-                Button("Start") {
-                    timerManager.start(
-                        for: block.id,
-                        mode: timerManager.mode,
-                        preferences: appStore.timerPreferences
-                    )
-                }
-                Button("Pause") {
-                    timerManager.pause()
-                }
-                Button("Resume") {
-                    timerManager.resume()
-                }
-                Button("Stop") {
-                    if let session = timerManager.stopAndBuildSession(dayPlanId: dayPlan.id) {
-                        appStore.addTimerSession(session)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(timerManager.state.label)
+                            .font(.caption)
+                            .secondaryTextStyle()
+                        Text(formattedTime(timerManager.remainingSeconds))
+                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .primaryTextStyle()
                     }
+
+                    Spacer()
+
+                    Picker("Mode", selection: $timerManager.mode) {
+                        ForEach(FocusMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .accentColor(AppColors.accent)
+                }
+
+                HStack(spacing: 12) {
+                    Button("Start") {
+                        timerManager.start(
+                            for: block.id,
+                            mode: timerManager.mode,
+                            preferences: appStore.timerPreferences
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppColors.accent)
+
+                    Button("Pause") {
+                        timerManager.pause()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Stop") {
+                        if let session = timerManager.stopAndBuildSession(dayPlanId: dayPlan.id) {
+                            appStore.addTimerSession(session)
+                        }
+                    }
+                    .buttonStyle(.bordered)
                 }
             }
+            .padding()
+            .background(AppColors.surfaceElevated)
+            .cornerRadius(12)
         }
     }
 
@@ -573,6 +642,10 @@ struct BlockDetailView: View {
         let minutes = seconds / 60
         let remaining = seconds % 60
         return String(format: "%02d:%02d", minutes, remaining)
+    }
+
+    private var blockTypeLabel: String {
+        workingBlock.type.rawValue.capitalized
     }
 }
 
