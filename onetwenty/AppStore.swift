@@ -1,6 +1,13 @@
 import Foundation
 import Combine
 
+enum DayStatusColor: String {
+    case blue   // completed
+    case red    // not completed
+    case yellow // in progress
+    case green  // revised
+}
+
 final class AppStore: ObservableObject {
     @Published var dayPlans: [DayPlan]
     @Published var currentDay: DayPlan?
@@ -12,6 +19,7 @@ final class AppStore: ObservableObject {
     @Published var behavioralStories: [BehavioralStory]
     @Published var reviewCards: [ReviewCard]
     @Published var showQuickCapture: Bool
+    @Published var exportCSVURL: URL?
 
     init(
         dayPlans: [DayPlan] = [],
@@ -23,7 +31,8 @@ final class AppStore: ObservableObject {
         projects: [Project] = [],
         behavioralStories: [BehavioralStory] = [],
         reviewCards: [ReviewCard] = [],
-        showQuickCapture: Bool = false
+        showQuickCapture: Bool = false,
+        exportCSVURL: URL? = nil
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
@@ -35,6 +44,7 @@ final class AppStore: ObservableObject {
         self.behavioralStories = behavioralStories
         self.reviewCards = reviewCards
         self.showQuickCapture = showQuickCapture
+        self.exportCSVURL = exportCSVURL
     }
 
     func loadInitialData() {
@@ -315,6 +325,9 @@ final class AppStore: ObservableObject {
     }
 
     func markDayCompleted(_ dayPlan: DayPlan, rating: Int, reflection: Reflection) {
+        let existingReflections = getReflections(for: dayPlan.id)
+        let statusColor: DayStatusColor = existingReflections.isEmpty ? .blue : .green
+
         var updatedPlan = dayPlan
         updatedPlan.blocks = dayPlan.blocks.map { block in
             var mutableBlock = block
@@ -330,6 +343,8 @@ final class AppStore: ObservableObject {
         newReflection.rating = rating
         reflections.append(newReflection)
         currentDay = updatedPlan
+
+        exportProgressIfPossible(for: updatedPlan, status: statusColor)
     }
 
     func addTimerSession(_ session: TimerSession) {
@@ -416,4 +431,130 @@ final class AppStore: ObservableObject {
         reviewCards[index].easeScore = newEase
         reviewCards[index].dueDate = newDueDate
     }
+
+    func updateExportForDay(_ dayPlan: DayPlan) {
+        exportProgressIfPossible(for: dayPlan)
+    }
+
+    func exportDayProgress(for dayPlan: DayPlan, status: DayStatusColor? = nil) throws {
+        guard let exportCSVURL else { return }
+
+        let reflectionsForDay = getReflections(for: dayPlan.id)
+        let chosenStatus = status ?? determineStatusColor(for: dayPlan, reflectionCount: reflectionsForDay.count)
+
+        let headerColumns = ["dayNumber", "date", "phase", "title", "statusColor", "rating", "focusSeconds", "reflectionCount"]
+        let headerLine = buildCSVLine(from: headerColumns)
+
+        var rows: [String]
+
+        let headerLowercase = headerColumns.map { $0.lowercased() }
+
+        if FileManager.default.fileExists(atPath: exportCSVURL.path) {
+            let existing = try String(contentsOf: exportCSVURL)
+            rows = existing.split(whereSeparator: { $0.isNewline }).map(String.init)
+            if rows.isEmpty {
+                rows.append(headerLine)
+            }
+        } else {
+            rows = [headerLine]
+        }
+
+        if let first = rows.first {
+            let columns = parseColumns(from: first).map { $0.lowercased() }
+            if columns != headerLowercase {
+                if rows.isEmpty {
+                    rows = [headerLine]
+                } else {
+                    rows[0] = headerLine
+                }
+            }
+        }
+
+        let dateString: String
+        if let date = dayPlan.date {
+            dateString = exportDateFormatter.string(from: date)
+        } else {
+            dateString = ""
+        }
+
+        let ratingValue = reflectionsForDay.last?.rating ?? 0
+        let focusSeconds = timerSessions
+            .filter { $0.dayPlanId == dayPlan.id }
+            .reduce(0) { partial, session in
+                partial + session.focusSeconds
+            }
+
+        let newRowColumns: [String] = [
+            String(dayPlan.dayNumber),
+            dateString,
+            dayPlan.phase,
+            dayPlan.title,
+            chosenStatus.rawValue,
+            String(ratingValue),
+            String(focusSeconds),
+            String(reflectionsForDay.count)
+        ]
+        let newRow = buildCSVLine(from: newRowColumns)
+
+        let filteredRows = rows.enumerated().filter { index, line in
+            if index == 0 { return true }
+            let columns = parseColumns(from: line)
+            guard let first = columns.first else { return false }
+            return first != String(dayPlan.dayNumber)
+        }.map { $0.element }
+
+        let dataRows = filteredRows.dropFirst() + [newRow]
+        let sortedDataRows = dataRows.sorted { lhs, rhs in
+            let leftNumber = Int(parseColumns(from: lhs).first ?? "") ?? Int.max
+            let rightNumber = Int(parseColumns(from: rhs).first ?? "") ?? Int.max
+            return leftNumber < rightNumber
+        }
+
+        let finalRows = [filteredRows.first ?? headerLine] + sortedDataRows
+        let output = finalRows.joined(separator: "\n")
+        try output.write(to: exportCSVURL, atomically: true, encoding: .utf8)
+    }
+
+    // MARK: - Export Helpers
+
+    private func exportProgressIfPossible(for dayPlan: DayPlan, status: DayStatusColor? = nil) {
+        do {
+            try exportDayProgress(for: dayPlan, status: status)
+        } catch {
+            print("Failed to export progress: \(error)")
+        }
+    }
+
+    private func determineStatusColor(for dayPlan: DayPlan, reflectionCount: Int) -> DayStatusColor {
+        if reflectionCount > 1 {
+            return .green
+        } else if reflectionCount == 1 {
+            return .blue
+        }
+
+        let completedBlocks = dayPlan.blocks.filter { $0.isCompleted }.count
+        if completedBlocks > 0 {
+            return .yellow
+        }
+
+        return .red
+    }
+
+    private func buildCSVLine(from values: [String]) -> String {
+        values.map { escapeCSVValue($0) }.joined(separator: ",")
+    }
+
+    private func escapeCSVValue(_ value: String) -> String {
+        if value.contains(",") || value.contains("\"") || value.contains("\n") {
+            let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        }
+        return value
+    }
+
+    private lazy var exportDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }
