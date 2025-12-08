@@ -85,17 +85,26 @@ struct ExportSettingsView: View {
     }
 
     private func chooseCSV() {
-        let panel = NSOpenPanel()
+        let panel = NSSavePanel()
         panel.allowedFileTypes = ["csv"]
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "AICoach_Progress.csv"
+        panel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         panel.title = "Select Progress Export CSV"
 
         if panel.runModal() == .OK, let url = panel.url {
-            appStore.exportCSVURL = url
-            statusMessage = "Export file set to \(url.lastPathComponent)"
-            isError = false
+            do {
+                try appStore.updateExportDestination(url)
+                if let resolved = appStore.exportCSVURL {
+                    statusMessage = "Export file set to \(resolved.path)"
+                } else {
+                    statusMessage = "Export file set to \(url.lastPathComponent)"
+                }
+                isError = false
+            } catch {
+                statusMessage = error.localizedDescription
+                isError = true
+            }
         }
     }
 

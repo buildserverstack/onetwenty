@@ -90,6 +90,14 @@ enum DayStatusColor: String {
     case green  // revised
 }
 
+private extension URL {
+    /// Returns true if the URL is inside the main bundle (read-only in production).
+    var isInsideMainBundle: Bool {
+        let bundlePath = Bundle.main.bundlePath
+        return path.hasPrefix(bundlePath)
+    }
+}
+
 enum ThemeChoice: String, CaseIterable, Identifiable {
     case system
     case light
@@ -714,8 +722,14 @@ final class AppStore: ObservableObject {
         exportProgressIfPossible(for: dayPlan)
     }
 
+    /// Updates the export destination and validates it is writable.
+    func updateExportDestination(_ url: URL) throws {
+        exportCSVURL = url
+        _ = try resolvedExportURL()
+    }
+
     func exportDayProgress(for dayPlan: DayPlan, status: DayStatusColor? = nil) throws {
-        guard let exportCSVURL else { return }
+        let exportURL = try resolvedExportURL()
 
         let reflectionsForDay = getReflections(for: dayPlan.id)
         let chosenStatus = status ?? determineStatusColor(for: dayPlan, reflectionCount: reflectionsForDay.count)
@@ -727,8 +741,8 @@ final class AppStore: ObservableObject {
 
         let headerLowercase = headerColumns.map { $0.lowercased() }
 
-        if FileManager.default.fileExists(atPath: exportCSVURL.path) {
-            let existing = try String(contentsOf: exportCSVURL)
+        if FileManager.default.fileExists(atPath: exportURL.path) {
+            let existing = try String(contentsOf: exportURL)
             rows = existing.split(whereSeparator: { $0.isNewline }).map(String.init)
             if rows.isEmpty {
                 rows.append(headerLine)
@@ -790,13 +804,14 @@ final class AppStore: ObservableObject {
 
         let finalRows = [filteredRows.first ?? headerLine] + sortedDataRows
         let output = finalRows.joined(separator: "\n")
-        try output.write(to: exportCSVURL, atomically: true, encoding: .utf8)
+        try output.write(to: exportURL, atomically: true, encoding: .utf8)
     }
 
     enum ExportRangeError: LocalizedError {
         case invalidRange
         case noDaysInRange
         case exportLocationMissing
+        case exportLocationNotWritable
 
         var errorDescription: String? {
             switch self {
@@ -806,13 +821,15 @@ final class AppStore: ObservableObject {
                 return "No days found in the selected range."
             case .exportLocationMissing:
                 return "Choose an export CSV file before exporting."
+            case .exportLocationNotWritable:
+                return "The selected export location is not writable. Please pick a folder you can save to (e.g. Documents)."
             }
         }
     }
 
     @discardableResult
     func exportRange(start: Int, end: Int) throws -> Int {
-        guard let _ = exportCSVURL else { throw ExportRangeError.exportLocationMissing }
+        _ = try resolvedExportURL()
         guard start <= end else { throw ExportRangeError.invalidRange }
 
         let plansInRange = dayPlans
@@ -836,6 +853,39 @@ final class AppStore: ObservableObject {
         } catch {
             print("Failed to export progress: \(error)")
         }
+    }
+
+    /// Validates or establishes a writable export URL.
+    /// - Returns: A URL guaranteed to be outside the app bundle and in a writable directory.
+    private func resolvedExportURL() throws -> URL {
+        let defaultURL = defaultExportURL()
+        var target = exportCSVURL ?? defaultURL
+
+        // Avoid writing inside the app bundle (read-only on macOS).
+        if target.isInsideMainBundle {
+            target = defaultURL
+        }
+
+        let directory = target.deletingLastPathComponent()
+        let fm = FileManager.default
+
+        if !fm.fileExists(atPath: directory.path) {
+            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+
+        if !fm.isWritableFile(atPath: directory.path) {
+            throw ExportRangeError.exportLocationNotWritable
+        }
+
+        exportCSVURL = target
+        return target
+    }
+
+    /// Default export location in the user's Documents directory.
+    private func defaultExportURL() -> URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return documents.appendingPathComponent("AICoach_Progress.csv")
     }
 
     private func determineStatusColor(for dayPlan: DayPlan, reflectionCount: Int) -> DayStatusColor {
