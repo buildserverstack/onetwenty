@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 enum SidebarItem: String, CaseIterable, Identifiable {
     case today
@@ -262,72 +261,6 @@ struct RoadmapView: View {
 struct NotebooksView: View {
     var body: some View {
         NotebooksRootView()
-    }
-}
-
-struct SettingsView: View {
-    @EnvironmentObject var appStore: AppStore
-    @State private var showImporter = false
-    @State private var importError: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Settings")
-                .font(.title)
-
-            Text("Import your 120-day plan from a CSV file to replace the current schedule.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            HStack(spacing: 12) {
-                Button {
-                    showImporter = true
-                } label: {
-                    Label("Import 120-Day CSV", systemImage: "square.and.arrow.down")
-                }
-
-                if let error = importError {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.footnote)
-                }
-            }
-
-            if !appStore.dayPlans.isEmpty {
-                Divider()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Current Plan")
-                        .font(.headline)
-                    Text("Days loaded: \(appStore.dayPlans.count)")
-                    if let current = appStore.currentDay {
-                        Text("Current Day: #\(current.dayNumber) – \(current.title)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .padding()
-        .fileImporter(
-            isPresented: $showImporter,
-            allowedContentTypes: [.commaSeparatedText],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                guard let url = urls.first else { return }
-                do {
-                    try appStore.loadFromCSV(url: url)
-                    importError = nil
-                } catch {
-                    importError = error.localizedDescription
-                }
-            case .failure(let error):
-                importError = error.localizedDescription
-            }
-        }
     }
 }
 
