@@ -139,6 +139,8 @@ final class AppStore: ObservableObject {
 
             let phase = value(for: "phase", in: columns, headerIndex: headerIndex) ?? ""
             let title = value(for: "title", in: columns, headerIndex: headerIndex) ?? "Day \(dayNumber)"
+            let dateValue = value(for: "date", in: columns, headerIndex: headerIndex)
+            let parsedDate = parseDate(from: dateValue)
             let dayPlanId = UUID()
             var blocks: [Block] = []
 
@@ -175,6 +177,7 @@ final class AppStore: ObservableObject {
                 phase: phase,
                 title: title,
                 blocks: blocks,
+                date: parsedDate,
                 resources: resources
             )
 
@@ -287,8 +290,28 @@ final class AppStore: ObservableObject {
         return resources
     }
 
+    private func parseDate(from value: String?) -> Date? {
+        guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+
+        if let isoDate = ISO8601DateFormatter().date(from: raw) {
+            return isoDate
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: raw)
+    }
+
     func goToDay(_ dayNumber: Int) {
         currentDay = dayPlans.first { $0.dayNumber == dayNumber }
+    }
+
+    func goToDate(_ date: Date) {
+        let target = dayPlans.first { plan in
+            guard let planDate = plan.date else { return false }
+            return Calendar.current.isDate(planDate, inSameDayAs: date)
+        }
+        currentDay = target
     }
 
     func markDayCompleted(_ dayPlan: DayPlan, rating: Int, reflection: Reflection) {

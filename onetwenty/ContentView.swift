@@ -98,7 +98,12 @@ struct TodayView: View {
     @State private var selectedBlock: Block?
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 12) {
+            DaySelectorView()
+                .environmentObject(appStore)
+
+            Divider()
+
             if let currentDay = appStore.currentDay {
                 HStack(alignment: .top) {
                     List(currentDay.blocks, id: \.id) { block in
@@ -143,7 +148,7 @@ struct TodayView: View {
                             .padding()
                     }
                 }
-                .padding()
+                .padding(.top, 4)
             } else {
                 Text("Select or create a day plan to get started.")
                     .font(.title3)
@@ -151,6 +156,7 @@ struct TodayView: View {
                     .padding()
             }
         }
+        .padding()
     }
 }
 
