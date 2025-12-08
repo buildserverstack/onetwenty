@@ -101,6 +101,14 @@ struct TodayView: View {
     @EnvironmentObject var appStore: AppStore
     @EnvironmentObject var timerManager: TimerManager
     @State private var selectedBlock: Block?
+    @State private var mlInsight1: String = ""
+    @State private var mlInsight2: String = ""
+    @State private var dsaPattern: String = ""
+    @State private var communicationLearning: String = ""
+    @State private var mistake: String = ""
+    @State private var questionForTomorrow: String = ""
+    @State private var rating: Int = 3
+    @State private var weaknessTagsText: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -154,14 +162,104 @@ struct TodayView: View {
                     }
                 }
                 .padding(.top, 4)
-            } else {
-                Text("Select or create a day plan to get started.")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-                    .padding()
+
+                Divider()
+
+                reflectionSection(for: currentDay)
+        } else {
+            Text("Select or create a day plan to get started.")
+                .font(.title3)
+                .foregroundColor(.secondary)
+                .padding()
             }
         }
         .padding()
+    }
+
+    @ViewBuilder
+    private func reflectionSection(for dayPlan: DayPlan) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Reflection & Rating")
+                .font(.title2)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ML / LLM / DL Insights")
+                    .font(.headline)
+                TextField("Insight 1", text: $mlInsight1)
+                TextField("Insight 2", text: $mlInsight2)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("DSA Pattern")
+                    .font(.headline)
+                TextField("Pattern name", text: $dsaPattern)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Communication / Interview Learning")
+                    .font(.headline)
+                TextField("What improved?", text: $communicationLearning)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Mistake")
+                    .font(.headline)
+                TextField("What went wrong?", text: $mistake)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Question for Tomorrow")
+                    .font(.headline)
+                TextField("What to clarify next?", text: $questionForTomorrow)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Weakness Tags (comma-separated)")
+                    .font(.headline)
+                TextField("e.g., arrays, gradient descent", text: $weaknessTagsText)
+            }
+
+            HStack {
+                Text("Rating")
+                    .font(.headline)
+                Stepper(value: $rating, in: 1...5) {
+                    Text("\(rating)")
+                }
+            }
+
+            Button {
+                let tags = weaknessTagsText
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+
+                let insights = [mlInsight1, mlInsight2]
+                appStore.saveReflection(
+                    for: dayPlan,
+                    mlInsights: insights,
+                    dsaPattern: dsaPattern,
+                    communicationLearning: communicationLearning,
+                    mistake: mistake,
+                    questionForTomorrow: questionForTomorrow,
+                    rating: rating,
+                    weaknessTags: tags
+                )
+
+                mlInsight1 = ""
+                mlInsight2 = ""
+                dsaPattern = ""
+                communicationLearning = ""
+                mistake = ""
+                questionForTomorrow = ""
+                weaknessTagsText = ""
+                rating = 3
+            } label: {
+                Text("Save Reflection & Mark Day Complete")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.top, 12)
     }
 }
 

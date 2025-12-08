@@ -366,6 +366,36 @@ final class AppStore: ObservableObject {
         currentDay = target
     }
 
+    func saveReflection(
+        for dayPlan: DayPlan,
+        mlInsights: [String],
+        dsaPattern: String,
+        communicationLearning: String,
+        mistake: String,
+        questionForTomorrow: String,
+        rating: Int,
+        weaknessTags: [String]
+    ) {
+        let cleanedInsights = mlInsights
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let normalizedRating = max(1, min(5, rating))
+        let reflection = Reflection(
+            id: UUID(),
+            dayPlanId: dayPlan.id,
+            mlInsights: cleanedInsights,
+            dsaPattern: dsaPattern,
+            communicationLearning: communicationLearning,
+            mistake: mistake,
+            questionForTomorrow: questionForTomorrow,
+            rating: normalizedRating,
+            weaknessTags: weaknessTags
+        )
+
+        markDayCompleted(dayPlan, rating: normalizedRating, reflection: reflection)
+    }
+
     func markDayCompleted(_ dayPlan: DayPlan, rating: Int, reflection: Reflection) {
         let existingReflections = getReflections(for: dayPlan.id)
         let statusColor: DayStatusColor = existingReflections.isEmpty ? .blue : .green
