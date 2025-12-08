@@ -12,6 +12,11 @@ struct SettingsView: View {
                 ImportPlanView()
                     .environmentObject(appStore)
 
+                Divider()
+
+                ExportSettingsView()
+                    .environmentObject(appStore)
+
                 if !appStore.dayPlans.isEmpty {
                     Divider()
                     VStack(alignment: .leading, spacing: 8) {
