@@ -444,11 +444,38 @@ final class AppStore: ObservableObject {
             return []
         }
 
-        return raw
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let tokens = parseTaskItems(from: raw)
+        return tokens
             .filter { !$0.isEmpty }
             .map { Task(id: UUID(), blockId: blockId, title: $0, isDone: false) }
+    }
+
+    private func parseTaskItems(from raw: String) -> [String] {
+        var items: [String] = []
+        var current = ""
+        var insideQuotes = false
+
+        for character in raw { 
+            if character == "\"" {
+                insideQuotes.toggle()
+            } else if character == "," && !insideQuotes {
+                items.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+
+        items.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
+
+        return items.map { token in
+            var cleaned = token
+            if cleaned.hasPrefix("\"") && cleaned.hasSuffix("\"") && cleaned.count >= 2 {
+                cleaned.removeFirst()
+                cleaned.removeLast()
+            }
+            return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
     }
 
     func goToDay(_ dayNumber: Int) {
