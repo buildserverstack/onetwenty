@@ -20,6 +20,10 @@ struct SettingsView: View {
                         .environmentObject(appStore)
                 }
 
+                sectionCard(title: "Daily Budget & Focus") {
+                    dailyBudgetFocusCard
+                }
+
                 sectionCard(title: "Timer Settings") {
                     timerSettings
                 }
@@ -71,6 +75,33 @@ private extension SettingsView {
                     Divider()
                         .background(AppColors.border)
                 }
+            }
+        }
+    }
+
+    var dailyBudgetFocusCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Daily time budget")
+                    .primaryTextStyle()
+                Stepper(value: Binding(
+                    get: { appStore.dailyTimeBudgetMinutes },
+                    set: { appStore.updateDailyBudget(minutes: $0) }
+                ), in: 30...720, step: 15) {
+                    Text("\(appStore.dailyTimeBudgetMinutes) min (\(formattedHours(appStore.dailyTimeBudgetMinutes)) hrs)")
+                        .secondaryTextStyle()
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Focus weights")
+                    .primaryTextStyle()
+                focusSlider(title: "DSA", binding: focusBinding(\.dsa))
+                focusSlider(title: "ML / LLM", binding: focusBinding(\.ml))
+                focusSlider(title: "Projects", binding: focusBinding(\.projects))
+                focusSlider(title: "Interview", binding: focusBinding(\.interview))
+
+                focusWeightsBar
             }
         }
     }
@@ -221,6 +252,57 @@ private extension SettingsView {
                 appStore.revisionSettings[keyPath: keyPath] = clamped
             }
         )
+    }
+
+    func focusBinding(_ keyPath: WritableKeyPath<FocusWeights, Double>) -> Binding<Double> {
+        Binding(
+            get: { appStore.focusWeights[keyPath: keyPath] * 100 },
+            set: { newValue in
+                var updated = appStore.focusWeights
+                updated[keyPath: keyPath] = max(0, newValue) / 100
+                appStore.updateFocusWeights(updated)
+            }
+        )
+    }
+
+    func focusSlider(title: String, binding: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .primaryTextStyle()
+                Spacer()
+                Text(String(format: "%.0f%%", binding.wrappedValue))
+                    .secondaryTextStyle()
+            }
+            Slider(value: binding, in: 0...100, step: 1)
+                .tint(AppColors.accent)
+        }
+    }
+
+    var focusWeightsBar: some View {
+        let weights = appStore.focusWeights.normalized()
+        return GeometryReader { proxy in
+            let width = proxy.size.width
+            HStack(spacing: 0) {
+                barSegment(color: AppColors.accent, width: width * weights.dsa)
+                barSegment(color: AppColors.accentSoft, width: width * weights.ml)
+                barSegment(color: AppColors.surfaceElevated, width: width * weights.projects)
+                barSegment(color: AppColors.border, width: width * weights.interview)
+            }
+            .frame(height: 10)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .frame(height: 12)
+    }
+
+    func barSegment(color: Color, width: CGFloat) -> some View {
+        color
+            .frame(width: max(0, width))
+    }
+
+    func formattedHours(_ minutes: Int) -> String {
+        let hours = Double(minutes) / 60.0
+        return String(format: "%.1f", hours)
     }
 
     func sectionCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

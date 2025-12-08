@@ -14,6 +14,15 @@ struct FocusWeights {
         self.interview = interview
     }
 
+    func clamped() -> FocusWeights {
+        FocusWeights(
+            dsa: max(0, dsa),
+            ml: max(0, ml),
+            projects: max(0, projects),
+            interview: max(0, interview)
+        )
+    }
+
     func normalized() -> FocusWeights {
         let total = dsa + ml + projects + interview
         guard total > 0 else { return FocusWeights(dsa: 0.25, ml: 0.25, projects: 0.25, interview: 0.25) }
@@ -236,6 +245,14 @@ final class AppStore: ObservableObject {
         dailyTimeBudgetMinutes = dailyBudgetMinutes
         self.focusWeights = focusWeights.normalized()
         currentDay = dayPlans.first { $0.dayNumber == startDay }
+    }
+
+    func updateFocusWeights(_ weights: FocusWeights) {
+        focusWeights = weights.clamped().normalized()
+    }
+
+    func updateDailyBudget(minutes: Int) {
+        dailyTimeBudgetMinutes = max(0, minutes)
     }
 
     /// Imports day plans from a CSV file. Expected headers (case-insensitive):
