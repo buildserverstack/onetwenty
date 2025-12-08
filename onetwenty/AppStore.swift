@@ -129,14 +129,13 @@ final class AppStore: ObservableObject {
     @Published var reviewCards: [ReviewCard]
     @Published var isQuickCaptureVisible: Bool
     @Published var exportCSVURL: URL?
+    private var exportBookmarkData: Data?
     @Published var startDayNumber: Int?
     @Published var dailyTimeBudgetMinutes: Int
     @Published var focusWeights: FocusWeights
     @Published var timerPreferences: TimerPreferences
     @Published var revisionSettings: RevisionSettings
     @Published var selectedTheme: ThemeChoice
-
-    private var exportBookmarkData: Data?
 
     init(
         dayPlans: [DayPlan] = [],
@@ -174,6 +173,11 @@ final class AppStore: ObservableObject {
         self.timerPreferences = timerPreferences
         self.revisionSettings = revisionSettings
         self.selectedTheme = selectedTheme
+
+        // Auto-select a writable export destination if one is not provided.
+        if self.exportCSVURL == nil {
+            self.exportCSVURL = firstWritableExportURL()
+        }
     }
 
     func toggleQuickCapture() {
@@ -734,6 +738,15 @@ final class AppStore: ObservableObject {
         _ = try resolvedExportURLWithAccess()
     }
 
+    /// Ensures a writable export destination without prompting the user.
+    @discardableResult
+    func ensureAutomaticExportDestination() throws -> URL {
+        let (url, accessStarted) = try resolvedExportURLWithAccess()
+        if accessStarted { url.stopAccessingSecurityScopedResource() }
+        exportCSVURL = url
+        return url
+    }
+
     func exportDayProgress(for dayPlan: DayPlan, status: DayStatusColor? = nil) throws {
         let (exportURL, accessStarted) = try resolvedExportURLWithAccess()
         defer { if accessStarted { exportURL.stopAccessingSecurityScopedResource() } }
@@ -866,7 +879,7 @@ final class AppStore: ObservableObject {
     /// Resolves a writable export URL and starts security-scoped access if needed.
     /// - Returns: URL plus a flag indicating whether access should be stopped by the caller.
     private func resolvedExportURLWithAccess() throws -> (URL, Bool) {
-        let defaultURL = defaultExportURL()
+        let defaultURL = firstWritableExportURL() ?? defaultExportURL()
         var target = exportCSVURL ?? defaultURL
 
         if let bookmark = exportBookmarkData {
@@ -884,6 +897,49 @@ final class AppStore: ObservableObject {
             target = defaultURL
         }
 
+        do {
+            let result = try ensureWritableExportURL(target)
+            exportCSVURL = result.0
+            return result
+        } catch ExportRangeError.exportLocationNotWritable {
+            if let fallback = firstWritableExportURL() {
+                let result = try ensureWritableExportURL(fallback)
+                exportCSVURL = result.0
+                return result
+            }
+            throw ExportRangeError.exportLocationNotWritable
+        }
+    }
+
+    /// Finds the first writable export location across common user folders.
+    private func firstWritableExportURL() -> URL? {
+        let directories: [FileManager.SearchPathDirectory] = [
+            .documentDirectory,
+            .downloadsDirectory,
+            .desktopDirectory,
+            .applicationSupportDirectory
+        ]
+
+        for directory in directories {
+            if let base = FileManager.default.urls(for: directory, in: .userDomainMask).first,
+               let candidate = try? ensureWritableExportURL(base.appendingPathComponent("AICoach_Progress.csv")) {
+                if candidate.1 { candidate.0.stopAccessingSecurityScopedResource() }
+                return candidate.0
+            }
+        }
+
+        // Fallback to temporary if nothing else is writable.
+        if let candidate = try? ensureWritableExportURL(FileManager.default.temporaryDirectory.appendingPathComponent("AICoach_Progress.csv")) {
+            if candidate.1 { candidate.0.stopAccessingSecurityScopedResource() }
+            return candidate.0
+        }
+
+        return nil
+    }
+
+    /// Validates and prepares a writable export URL, creating directories and test-writing when needed.
+    private func ensureWritableExportURL(_ url: URL) throws -> (URL, Bool) {
+        var target = url
         let directory = target.deletingLastPathComponent()
         let fm = FileManager.default
 
@@ -908,7 +964,6 @@ final class AppStore: ObservableObject {
             throw ExportRangeError.exportLocationNotWritable
         }
 
-        exportCSVURL = target
         return (target, accessStarted)
     }
 

@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct ExportSettingsView: View {
     @EnvironmentObject var appStore: AppStore
@@ -14,7 +13,7 @@ struct ExportSettingsView: View {
             Text("Progress Export")
                 .font(.headline)
 
-            Text("Choose where to save your daily progress CSV. You can change this anytime.")
+            Text("Choose where to save your daily progress CSV. The app will pick a safe, writable folder automatically (Documents/Downloads/Desktop/Application Support).")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -31,8 +30,8 @@ struct ExportSettingsView: View {
                     .foregroundColor(.secondary)
             }
 
-            Button("Choose Export CSV…") {
-                chooseCSV()
+            Button("Use Automatic Export Location") {
+                setAutomaticDestination()
             }
 
             Divider()
@@ -73,7 +72,12 @@ struct ExportSettingsView: View {
             }
         }
         .padding()
-        .onAppear(perform: updateRangeDefaults)
+        .onAppear {
+            updateRangeDefaults()
+            if appStore.exportCSVURL == nil {
+                setAutomaticDestination()
+            }
+        }
     }
 
     private var minDayNumber: Int {
@@ -84,27 +88,14 @@ struct ExportSettingsView: View {
         appStore.dayPlans.map { $0.dayNumber }.max() ?? max(endDay, startDay)
     }
 
-    private func chooseCSV() {
-        let panel = NSSavePanel()
-        panel.allowedFileTypes = ["csv"]
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "AICoach_Progress.csv"
-        panel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        panel.title = "Select Progress Export CSV"
-
-        if panel.runModal() == .OK, let url = panel.url {
-            do {
-                try appStore.updateExportDestination(url)
-                if let resolved = appStore.exportCSVURL {
-                    statusMessage = "Export file set to \(resolved.path)"
-                } else {
-                    statusMessage = "Export file set to \(url.lastPathComponent)"
-                }
-                isError = false
-            } catch {
-                statusMessage = error.localizedDescription
-                isError = true
-            }
+    private func setAutomaticDestination() {
+        do {
+            let url = try appStore.ensureAutomaticExportDestination()
+            statusMessage = "Export file set to \(url.path)"
+            isError = false
+        } catch {
+            statusMessage = error.localizedDescription
+            isError = true
         }
     }
 
