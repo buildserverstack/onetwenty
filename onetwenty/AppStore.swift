@@ -793,6 +793,41 @@ final class AppStore: ObservableObject {
         try output.write(to: exportCSVURL, atomically: true, encoding: .utf8)
     }
 
+    enum ExportRangeError: LocalizedError {
+        case invalidRange
+        case noDaysInRange
+        case exportLocationMissing
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidRange:
+                return "Start day must be less than or equal to end day."
+            case .noDaysInRange:
+                return "No days found in the selected range."
+            case .exportLocationMissing:
+                return "Choose an export CSV file before exporting."
+            }
+        }
+    }
+
+    @discardableResult
+    func exportRange(start: Int, end: Int) throws -> Int {
+        guard let _ = exportCSVURL else { throw ExportRangeError.exportLocationMissing }
+        guard start <= end else { throw ExportRangeError.invalidRange }
+
+        let plansInRange = dayPlans
+            .filter { $0.dayNumber >= start && $0.dayNumber <= end }
+            .sorted { $0.dayNumber < $1.dayNumber }
+
+        guard !plansInRange.isEmpty else { throw ExportRangeError.noDaysInRange }
+
+        try plansInRange.forEach { plan in
+            try exportDayProgress(for: plan)
+        }
+
+        return plansInRange.count
+    }
+
     // MARK: - Export Helpers
 
     private func exportProgressIfPossible(for dayPlan: DayPlan, status: DayStatusColor? = nil) {

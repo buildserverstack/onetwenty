@@ -6,6 +6,8 @@ struct ExportSettingsView: View {
 
     @State private var statusMessage: String?
     @State private var isError: Bool = false
+    @State private var startDay: Int = 1
+    @State private var endDay: Int = 10
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,6 +35,37 @@ struct ExportSettingsView: View {
                 chooseCSV()
             }
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Export a day range on demand")
+                    .font(.subheadline.weight(.semibold))
+                Text("Use day numbers to re-export any slice of your plan.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+
+                if appStore.dayPlans.isEmpty {
+                    Text("Load a plan before exporting a range.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                } else {
+                    HStack(spacing: 12) {
+                        Stepper(value: $startDay, in: minDayNumber...maxDayNumber) {
+                            Text("Start day: \(startDay)")
+                        }
+
+                        Stepper(value: $endDay, in: minDayNumber...maxDayNumber) {
+                            Text("End day: \(endDay)")
+                        }
+                    }
+
+                    Button("Export Now") {
+                        exportRange()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+
             if let statusMessage {
                 Text(statusMessage)
                     .font(.footnote)
@@ -40,6 +73,15 @@ struct ExportSettingsView: View {
             }
         }
         .padding()
+        .onAppear(perform: updateRangeDefaults)
+    }
+
+    private var minDayNumber: Int {
+        appStore.dayPlans.map { $0.dayNumber }.min() ?? 1
+    }
+
+    private var maxDayNumber: Int {
+        appStore.dayPlans.map { $0.dayNumber }.max() ?? max(endDay, startDay)
     }
 
     private func chooseCSV() {
@@ -55,6 +97,25 @@ struct ExportSettingsView: View {
             statusMessage = "Export file set to \(url.lastPathComponent)"
             isError = false
         }
+    }
+
+    private func exportRange() {
+        do {
+            let count = try appStore.exportRange(start: startDay, end: endDay)
+            statusMessage = "Exported days \(startDay)–\(endDay) (\(count) day(s))."
+            isError = false
+        } catch {
+            statusMessage = error.localizedDescription
+            isError = true
+        }
+    }
+
+    private func updateRangeDefaults() {
+        guard !appStore.dayPlans.isEmpty else { return }
+        let minDay = minDayNumber
+        let maxDay = maxDayNumber
+        startDay = minDay
+        endDay = maxDay
     }
 }
 
