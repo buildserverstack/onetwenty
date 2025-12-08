@@ -24,21 +24,24 @@ final class TimerManager: ObservableObject {
     private var startedAt: Date?
     private var tickTask: _Concurrency.Task<Void, Never>?
     private var isPaused = false
+    private var storedPreferences: TimerPreferences = .defaults
 
     func start(
         for blockId: UUID,
         mode: FocusMode,
+        preferences: TimerPreferences? = nil,
         customFocusDuration: Int? = nil,
         customBreakDuration: Int? = nil,
         customTotalCycles: Int? = nil
     ) {
         stopTimerLoop()
 
-        let defaults = defaults(for: mode)
+        let resolvedPreferences = preferences ?? storedPreferences
+        configure(from: resolvedPreferences, for: mode)
         self.mode = mode
-        focusDuration = customFocusDuration ?? defaults.focus
-        breakDuration = customBreakDuration ?? defaults.break
-        totalCycles = customTotalCycles ?? defaults.cycles
+        if let customFocusDuration { focusDuration = customFocusDuration }
+        if let customBreakDuration { breakDuration = customBreakDuration }
+        if let customTotalCycles { totalCycles = customTotalCycles }
         remainingSeconds = mode == .stopwatch ? 0 : focusDuration
         cyclesCompleted = 0
         focusAccumulated = 0
@@ -52,6 +55,10 @@ final class TimerManager: ObservableObject {
         tickTask = _Concurrency.Task { [weak self] in
             await self?.runTimerLoop()
         }
+    }
+
+    func updatePreferences(_ preferences: TimerPreferences) {
+        storedPreferences = preferences
     }
 
     func pause() {
@@ -97,18 +104,29 @@ final class TimerManager: ObservableObject {
         completeCycleAndTransition()
     }
 
-    private func defaults(for mode: FocusMode) -> (focus: Int, break: Int, cycles: Int) {
+    func configure(from preferences: TimerPreferences, for mode: FocusMode) {
+        storedPreferences = preferences
         switch mode {
         case .focusedDrill:
-            return (25 * 60, 5 * 60, 4)
+            focusDuration = preferences.focusedDrillFocusMinutes * 60
+            breakDuration = preferences.focusedDrillBreakMinutes * 60
+            totalCycles = preferences.focusedDrillCycles
         case .conceptBlock:
-            return (40 * 60, 10 * 60, 2)
+            focusDuration = preferences.conceptBlockFocusMinutes * 60
+            breakDuration = preferences.conceptBlockBreakMinutes * 60
+            totalCycles = preferences.conceptBlockCycles
         case .deepBuild:
-            return (50 * 60, 10 * 60, 3)
+            focusDuration = preferences.deepBuildFocusMinutes * 60
+            breakDuration = preferences.deepBuildBreakMinutes * 60
+            totalCycles = preferences.deepBuildCycles
         case .simulationBurst:
-            return (18 * 60, 4 * 60, 3)
+            focusDuration = preferences.simulationBurstFocusMinutes * 60
+            breakDuration = preferences.simulationBurstBreakMinutes * 60
+            totalCycles = preferences.simulationBurstCycles
         case .stopwatch:
-            return (0, 0, 1)
+            focusDuration = 0
+            breakDuration = 0
+            totalCycles = 1
         }
     }
 

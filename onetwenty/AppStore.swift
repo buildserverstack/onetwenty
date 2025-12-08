@@ -26,6 +26,38 @@ struct FocusWeights {
     }
 }
 
+struct TimerPreferences: Codable {
+    var focusedDrillFocusMinutes: Int
+    var focusedDrillBreakMinutes: Int
+    var focusedDrillCycles: Int
+    var conceptBlockFocusMinutes: Int
+    var conceptBlockBreakMinutes: Int
+    var conceptBlockCycles: Int
+    var deepBuildFocusMinutes: Int
+    var deepBuildBreakMinutes: Int
+    var deepBuildCycles: Int
+    var simulationBurstFocusMinutes: Int
+    var simulationBurstBreakMinutes: Int
+    var simulationBurstCycles: Int
+
+    static var defaults: TimerPreferences {
+        TimerPreferences(
+            focusedDrillFocusMinutes: 25,
+            focusedDrillBreakMinutes: 5,
+            focusedDrillCycles: 4,
+            conceptBlockFocusMinutes: 40,
+            conceptBlockBreakMinutes: 10,
+            conceptBlockCycles: 2,
+            deepBuildFocusMinutes: 50,
+            deepBuildBreakMinutes: 10,
+            deepBuildCycles: 3,
+            simulationBurstFocusMinutes: 18,
+            simulationBurstBreakMinutes: 4,
+            simulationBurstCycles: 3
+        )
+    }
+}
+
 enum DayStatusColor: String {
     case blue   // completed
     case red    // not completed
@@ -48,6 +80,7 @@ final class AppStore: ObservableObject {
     @Published var startDayNumber: Int?
     @Published var dailyTimeBudgetMinutes: Int
     @Published var focusWeights: FocusWeights
+    @Published var timerPreferences: TimerPreferences
 
     init(
         dayPlans: [DayPlan] = [],
@@ -63,7 +96,8 @@ final class AppStore: ObservableObject {
         exportCSVURL: URL? = nil,
         startDayNumber: Int? = nil,
         dailyTimeBudgetMinutes: Int = 180,
-        focusWeights: FocusWeights = FocusWeights()
+        focusWeights: FocusWeights = FocusWeights(),
+        timerPreferences: TimerPreferences = .defaults
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
@@ -79,6 +113,7 @@ final class AppStore: ObservableObject {
         self.startDayNumber = startDayNumber
         self.dailyTimeBudgetMinutes = dailyTimeBudgetMinutes
         self.focusWeights = focusWeights
+        self.timerPreferences = timerPreferences
     }
 
     func toggleQuickCapture() {

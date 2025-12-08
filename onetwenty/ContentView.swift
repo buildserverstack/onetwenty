@@ -466,7 +466,11 @@ struct BlockDetailView: View {
                 Spacer()
 
                 Button("Start") {
-                    timerManager.start(for: block.id, mode: timerManager.mode)
+                    timerManager.start(
+                        for: block.id,
+                        mode: timerManager.mode,
+                        preferences: appStore.timerPreferences
+                    )
                 }
                 Button("Pause") {
                     timerManager.pause()

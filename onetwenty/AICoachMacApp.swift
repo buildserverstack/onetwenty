@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @main
 struct AICoachMacApp: App {
@@ -12,6 +13,10 @@ struct AICoachMacApp: App {
                 .environmentObject(timerManager)
                 .onAppear {
                     appStore.loadInitialData()
+                    timerManager.updatePreferences(appStore.timerPreferences)
+                }
+                .onReceive(appStore.$timerPreferences) { newPreferences in
+                    timerManager.updatePreferences(newPreferences)
                 }
         }
         .commands {
@@ -48,7 +53,11 @@ struct AICoachMacApp: App {
                 HStack(spacing: 12) {
                     Button("Start") {
                         let blockId = timerManager.activeBlockId ?? UUID()
-                        timerManager.start(for: blockId, mode: timerManager.mode)
+                        timerManager.start(
+                            for: blockId,
+                            mode: timerManager.mode,
+                            preferences: appStore.timerPreferences
+                        )
                     }
 
                     Button("Pause") {
