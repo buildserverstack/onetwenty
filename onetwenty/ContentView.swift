@@ -125,76 +125,125 @@ struct TodayView: View {
     @State private var weaknessTagsText: String = ""
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                DaySelectorView()
-                    .environmentObject(appStore)
-                    .cardBackground()
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 900
 
-                if let currentDay = appStore.currentDay {
-                    HStack(alignment: .top, spacing: 16) {
-                        List(currentDay.blocks, id: \.id) { block in
-                            HStack {
-                                Image(systemName: block.type.systemImageName)
-                                    .foregroundColor(AppColors.accent)
-                                VStack(alignment: .leading) {
-                                    Text(block.title)
-                                        .font(.headline)
-                                        .primaryTextStyle()
-                                    Text(block.description)
-                                        .font(.subheadline)
-                                        .secondaryTextStyle()
-                                }
-                                Spacer()
-                                Image(systemName: block.isCompleted ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(block.isCompleted ? AppColors.accent : AppColors.textSecondary)
-                            }
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedBlock = block
-                            }
-                        }
-                        .frame(minWidth: 260)
-                        .listStyle(.inset)
-                        .scrollContentBackground(.hidden)
-                        .background(AppColors.surface)
-                        .listRowBackground(AppColors.surface)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    DaySelectorView()
+                        .environmentObject(appStore)
                         .cardBackground()
-                        .onAppear {
-                            if selectedBlock == nil {
-                                selectedBlock = currentDay.blocks.first
+
+                    if let currentDay = appStore.currentDay {
+                        if isCompact {
+                            VStack(alignment: .leading, spacing: 16) {
+                                blockList(for: currentDay)
+                                detailPanel(for: currentDay)
                             }
-                        }
-                        .onChange(of: appStore.currentDay?.id) { _ in
-                            selectedBlock = appStore.currentDay?.blocks.first
+                        } else {
+                            HStack(alignment: .top, spacing: 16) {
+                                blockList(for: currentDay)
+                                    .frame(maxWidth: 340)
+                                detailPanel(for: currentDay)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        if let block = selectedBlock {
-                            BlockDetailView(block: block, dayPlan: currentDay)
-                                .environmentObject(appStore)
-                                .environmentObject(timerManager)
-                                .cardBackground()
-                        } else {
-                            Text("Select a block to view details")
+                        reflectionSection(for: currentDay)
+                            .cardBackground()
+                    } else {
+                        Text("Select or create a day plan to get started.")
+                            .font(.title3)
+                            .secondaryTextStyle()
+                            .cardBackground()
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(AppColors.background)
+            .tint(AppColors.accent)
+        }
+    }
+
+    private func blockList(for currentDay: DayPlan) -> some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(currentDay.blocks, id: \.id) { block in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(block.title)
+                                    .primaryTextStyle()
+                                    .font(.headline)
+                                Text(block.type.displayName)
+                                    .secondaryTextStyle()
+                                    .font(.caption)
+                            }
+
+                            Spacer()
+
+                            if block.isCompleted {
+                                Text("Done")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundColor(AppColors.background)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(AppColors.accent)
+                                    .clipShape(Capsule())
+                            }
+                        }
+
+                        if !block.description.isEmpty {
+                            Text(block.description)
                                 .secondaryTextStyle()
-                                .cardBackground()
+                                .font(.subheadline)
                         }
                     }
-
-                    reflectionSection(for: currentDay)
-                        .cardBackground()
-                } else {
-                    Text("Select or create a day plan to get started.")
-                        .font(.title3)
-                        .secondaryTextStyle()
-                        .cardBackground()
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(selectedBlock?.id == block.id ? AppColors.surfaceElevated : AppColors.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(selectedBlock?.id == block.id ? AppColors.accent : AppColors.border, lineWidth: 1)
+                    )
+                    .cornerRadius(10)
+                    .onTapGesture {
+                        selectedBlock = block
+                    }
                 }
             }
-            .padding()
+            .padding(8)
         }
-        .background(AppColors.background)
-        .tint(AppColors.accent)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            if selectedBlock == nil {
+                selectedBlock = currentDay.blocks.first
+            }
+        }
+        .onChange(of: appStore.currentDay?.id) { _ in
+            selectedBlock = appStore.currentDay?.blocks.first
+        }
+        .background(AppColors.surfaceElevated.opacity(0.4))
+        .cornerRadius(12)
+    }
+
+    private func detailPanel(for currentDay: DayPlan) -> some View {
+        Group {
+            if let block = selectedBlock {
+                ScrollView {
+                    BlockDetailView(block: block, dayPlan: currentDay)
+                        .environmentObject(appStore)
+                        .environmentObject(timerManager)
+                }
+                .cardBackground()
+            } else {
+                Text("Select a block to view details")
+                    .secondaryTextStyle()
+                    .cardBackground()
+            }
+        }
     }
 
     @ViewBuilder
