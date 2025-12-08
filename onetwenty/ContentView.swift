@@ -368,6 +368,8 @@ struct BlockDetailView: View {
     @EnvironmentObject var appStore: AppStore
     @EnvironmentObject var timerManager: TimerManager
     @State private var workingBlock: Block
+    @State private var customFocusMinutesText: String = ""
+    @State private var customBreakMinutesText: String = ""
 
     init(block: Block, dayPlan: DayPlan) {
         self.block = block
@@ -398,6 +400,14 @@ struct BlockDetailView: View {
             .padding()
         }
         .background(AppColors.background)
+        .onChange(of: block.id) { _ in
+            resetCustomDurations()
+        }
+        .onChange(of: timerManager.state) { newState in
+            if newState == .idle {
+                resetCustomDurations()
+            }
+        }
     }
 
     private var summarySection: some View {
@@ -524,12 +534,39 @@ struct BlockDetailView: View {
                     .accentColor(AppColors.accent)
                 }
 
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Focus minutes")
+                                .font(.caption)
+                                .foregroundColor(AppColors.textSecondary)
+                            TextField("Default", text: $customFocusMinutesText)
+                                .textFieldStyle(.roundedBorder)
+                                .foregroundColor(AppColors.textPrimary)
+                                .background(AppColors.surface)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Break minutes")
+                                .font(.caption)
+                                .foregroundColor(AppColors.textSecondary)
+                            TextField("Default", text: $customBreakMinutesText)
+                                .textFieldStyle(.roundedBorder)
+                                .foregroundColor(AppColors.textPrimary)
+                                .background(AppColors.surface)
+                        }
+                    }
+                    .textFieldStyle(.roundedBorder)
+                }
+
                 HStack(spacing: 12) {
                     Button("Start") {
                         timerManager.start(
                             for: block.id,
                             mode: timerManager.mode,
-                            preferences: appStore.timerPreferences
+                            preferences: appStore.timerPreferences,
+                            customFocusDuration: parsedCustomMinutes(from: customFocusMinutesText),
+                            customBreakDuration: parsedCustomMinutes(from: customBreakMinutesText)
                         )
                     }
                     .buttonStyle(.borderedProminent)
@@ -544,6 +581,7 @@ struct BlockDetailView: View {
                         if let session = timerManager.stopAndBuildSession(dayPlanId: dayPlan.id) {
                             appStore.addTimerSession(session)
                         }
+                        resetCustomDurations()
                     }
                     .buttonStyle(.bordered)
                 }
@@ -558,6 +596,18 @@ struct BlockDetailView: View {
         let minutes = seconds / 60
         let remaining = seconds % 60
         return String(format: "%02d:%02d", minutes, remaining)
+    }
+
+    private func parsedCustomMinutes(from text: String) -> Int? {
+        guard let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)), value > 0 else {
+            return nil
+        }
+        return value * 60
+    }
+
+    private func resetCustomDurations() {
+        customFocusMinutesText = ""
+        customBreakMinutesText = ""
     }
 
     private var blockTypeLabel: String {
