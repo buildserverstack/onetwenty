@@ -282,8 +282,15 @@ struct RoadmapView: View {
             }
             .frame(minWidth: 280)
             .onAppear {
-                if selectedDayPlan == nil {
+                if let current = appStore.currentDay {
+                    selectedDayPlan = current
+                } else if selectedDayPlan == nil {
                     selectedDayPlan = appStore.dayPlans.first
+                }
+            }
+            .onChange(of: appStore.currentDay?.id) { _ in
+                if let current = appStore.currentDay {
+                    selectedDayPlan = current
                 }
             }
 
