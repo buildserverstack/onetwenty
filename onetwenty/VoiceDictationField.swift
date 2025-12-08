@@ -1,6 +1,7 @@
 import SwiftUI
 import Speech
 import AVFoundation
+import Combine
 
 struct VoiceDictationField: View {
     @Binding var text: String
@@ -112,13 +113,6 @@ final class SpeechDictationController: ObservableObject {
         request.shouldReportPartialResults = true
         recognitionRequest = request
 
-        do {
-            try configureAudioSession()
-        } catch {
-            statusMessage = "Audio session error: \(error.localizedDescription)"
-            return
-        }
-
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.removeTap(onBus: 0)
@@ -160,11 +154,6 @@ final class SpeechDictationController: ObservableObject {
         }
     }
 
-    private func configureAudioSession() throws {
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .default)
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
-    }
 }
 
 #Preview {
