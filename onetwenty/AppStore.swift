@@ -90,17 +90,21 @@ enum DayStatusColor: String {
     case green  // revised
 }
 
-enum AppThemeChoice: String, Codable, CaseIterable, Identifiable {
+enum ThemeChoice: String, CaseIterable, Identifiable {
     case system
     case light
     case dark
 
     var id: String { rawValue }
+
     var displayName: String {
         switch self {
-        case .system: return "System"
-        case .light: return "Light"
-        case .dark: return "Dark"
+        case .system:
+            return "System"
+        case .light:
+            return "Light"
+        case .dark:
+            return "Dark"
         }
     }
 }
@@ -122,7 +126,7 @@ final class AppStore: ObservableObject {
     @Published var focusWeights: FocusWeights
     @Published var timerPreferences: TimerPreferences
     @Published var revisionSettings: RevisionSettings
-    @Published var selectedTheme: AppThemeChoice
+    @Published var selectedTheme: ThemeChoice
 
     init(
         dayPlans: [DayPlan] = [],
@@ -141,7 +145,7 @@ final class AppStore: ObservableObject {
         focusWeights: FocusWeights = FocusWeights(),
         timerPreferences: TimerPreferences = .defaults,
         revisionSettings: RevisionSettings = .defaults,
-        selectedTheme: AppThemeChoice = .system
+        selectedTheme: ThemeChoice = .dark
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay

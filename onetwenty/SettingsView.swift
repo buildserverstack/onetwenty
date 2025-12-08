@@ -158,7 +158,7 @@ private extension SettingsView {
                 .primaryTextStyle()
 
             Picker("Theme", selection: $appStore.selectedTheme) {
-                ForEach(AppThemeChoice.allCases) { choice in
+                ForEach(ThemeChoice.allCases) { choice in
                     Text(choice.displayName)
                         .tag(choice)
                 }
