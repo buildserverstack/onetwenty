@@ -335,7 +335,7 @@ final class AppStore: ObservableObject {
             }
 
             guard let url = URL(string: urlString) else { continue }
-            let resource = ResourceLink(id: UUID(), label: label, url: url, tags: [])
+            let resource = ResourceLink(id: UUID(), label: label, url: url, tags: nil)
             resources.append(resource)
         }
 

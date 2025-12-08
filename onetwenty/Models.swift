@@ -47,6 +47,7 @@ struct Block: Identifiable, Codable {
     var defaultMode: FocusMode
     var isCompleted: Bool
     var tasks: [Task]
+    var resources: [ResourceLink]? = nil
 }
 
 struct Task: Identifiable, Codable {
@@ -56,11 +57,11 @@ struct Task: Identifiable, Codable {
     var isDone: Bool
 }
 
-struct ResourceLink: Identifiable, Codable {
-    let id: UUID
+struct ResourceLink: Identifiable, Codable, Hashable {
+    var id: UUID
     var label: String
     var url: URL
-    var tags: [String]
+    var tags: [String]? = nil
 }
 
 struct TimerSession: Identifiable, Codable {

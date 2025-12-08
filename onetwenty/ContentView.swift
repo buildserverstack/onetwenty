@@ -419,10 +419,26 @@ struct BlockDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Resources")
                 .font(.headline)
-            Text("Add links to resources or references here.")
-                .foregroundColor(.secondary)
-                .font(.subheadline)
+
+            let resources = availableResources
+            if resources.isEmpty {
+                Text("No resources for this block.")
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+            } else {
+                ForEach(resources) { resource in
+                    Link(resource.label, destination: resource.url)
+                        .font(.body)
+                }
+            }
         }
+    }
+
+    private var availableResources: [ResourceLink] {
+        if let blockResources = workingBlock.resources, !blockResources.isEmpty {
+            return blockResources
+        }
+        return dayPlan.resources
     }
 
     private var timerSection: some View {
