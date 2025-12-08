@@ -58,6 +58,22 @@ struct TimerPreferences: Codable {
     }
 }
 
+struct RevisionSettings: Codable {
+    var dailyMaxCards: Int
+    var initialIntervalDays: Int
+    var hardIntervalMultiplier: Double
+    var easyIntervalMultiplier: Double
+
+    static var defaults: RevisionSettings {
+        RevisionSettings(
+            dailyMaxCards: 10,
+            initialIntervalDays: 3,
+            hardIntervalMultiplier: 0.5,
+            easyIntervalMultiplier: 2.0
+        )
+    }
+}
+
 enum DayStatusColor: String {
     case blue   // completed
     case red    // not completed
@@ -81,6 +97,7 @@ final class AppStore: ObservableObject {
     @Published var dailyTimeBudgetMinutes: Int
     @Published var focusWeights: FocusWeights
     @Published var timerPreferences: TimerPreferences
+    @Published var revisionSettings: RevisionSettings
 
     init(
         dayPlans: [DayPlan] = [],
@@ -97,7 +114,8 @@ final class AppStore: ObservableObject {
         startDayNumber: Int? = nil,
         dailyTimeBudgetMinutes: Int = 180,
         focusWeights: FocusWeights = FocusWeights(),
-        timerPreferences: TimerPreferences = .defaults
+        timerPreferences: TimerPreferences = .defaults,
+        revisionSettings: RevisionSettings = .defaults
     ) {
         self.dayPlans = dayPlans
         self.currentDay = currentDay
@@ -114,6 +132,7 @@ final class AppStore: ObservableObject {
         self.dailyTimeBudgetMinutes = dailyTimeBudgetMinutes
         self.focusWeights = focusWeights
         self.timerPreferences = timerPreferences
+        self.revisionSettings = revisionSettings
     }
 
     func toggleQuickCapture() {
@@ -526,19 +545,39 @@ final class AppStore: ObservableObject {
 
     func reviewItemsDueToday() -> [ReviewCard] {
         let today = Calendar.current.startOfDay(for: Date())
-        return reviewCards
+        let due = reviewCards
             .filter { Calendar.current.startOfDay(for: $0.dueDate) <= today }
             .sorted { $0.dueDate < $1.dueDate }
+
+        if due.count > revisionSettings.dailyMaxCards {
+            return Array(due.prefix(revisionSettings.dailyMaxCards))
+        }
+
+        return due
     }
 
     func handleReviewResult(card: ReviewCard, hard: Bool) {
         guard let index = reviewCards.firstIndex(where: { $0.id == card.id }) else { return }
 
         let easeAdjustment = hard ? -1 : 1
-        let intervalDays = hard ? 1 : 3
-        let newEase = max(0, reviewCards[index].easeScore + easeAdjustment)
-        let newDueDate = Calendar.current.date(byAdding: .day, value: intervalDays, to: Date()) ?? Date()
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
 
+        let currentDueDate = reviewCards[index].dueDate
+        let previousInterval = calendar.dateComponents([.day], from: startOfToday, to: calendar.startOfDay(for: currentDueDate)).day ?? revisionSettings.initialIntervalDays
+        let baseInterval = max(1, previousInterval)
+
+        let multiplier = hard ? revisionSettings.hardIntervalMultiplier : revisionSettings.easyIntervalMultiplier
+        var nextInterval = Double(baseInterval) * multiplier
+
+        if reviewCards[index].easeScore == 0 {
+            nextInterval = Double(revisionSettings.initialIntervalDays)
+        }
+
+        let intervalDays = max(1, Int(round(nextInterval)))
+        let newDueDate = calendar.date(byAdding: .day, value: intervalDays, to: Date()) ?? Date()
+
+        let newEase = max(0, reviewCards[index].easeScore + easeAdjustment)
         reviewCards[index].easeScore = newEase
         reviewCards[index].dueDate = newDueDate
     }

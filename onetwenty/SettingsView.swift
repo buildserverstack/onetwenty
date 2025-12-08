@@ -20,6 +20,9 @@ struct SettingsView: View {
                 Divider()
                 timerSettings
 
+                Divider()
+                revisionSettings
+
                 if !appStore.dayPlans.isEmpty {
                     Divider()
                     VStack(alignment: .leading, spacing: 8) {
@@ -81,6 +84,39 @@ private extension SettingsView {
         }
     }
 
+    var revisionSettings: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Revision Settings")
+                .font(.headline)
+
+            Text("Control how many cards you see daily and the interval multipliers for review scheduling.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Stepper(value: revisionBinding(for: \.dailyMaxCards), in: 1...100) {
+                Text("Daily max cards: \(appStore.revisionSettings.dailyMaxCards)")
+            }
+
+            Stepper(value: revisionBinding(for: \.initialIntervalDays), in: 1...30) {
+                Text("Initial interval (days): \(appStore.revisionSettings.initialIntervalDays)")
+            }
+
+            HStack(spacing: 16) {
+                VStack(alignment: .leading) {
+                    Text("Hard multiplier")
+                    TextField("Hard multiplier", value: revisionBinding(for: \.hardIntervalMultiplier), formatter: numberFormatter)
+                        .frame(width: 100)
+                }
+
+                VStack(alignment: .leading) {
+                    Text("Easy multiplier")
+                    TextField("Easy multiplier", value: revisionBinding(for: \.easyIntervalMultiplier), formatter: numberFormatter)
+                        .frame(width: 100)
+                }
+            }
+        }
+    }
+
     func timerRow(
         title: String,
         focusBinding: Binding<Int>,
@@ -115,6 +151,32 @@ private extension SettingsView {
                 appStore.timerPreferences[keyPath: keyPath] = max(0, newValue)
             }
         )
+    }
+
+    func revisionBinding(for keyPath: WritableKeyPath<RevisionSettings, Int>) -> Binding<Int> {
+        Binding(
+            get: { appStore.revisionSettings[keyPath: keyPath] },
+            set: { newValue in
+                appStore.revisionSettings[keyPath: keyPath] = max(0, newValue)
+            }
+        )
+    }
+
+    func revisionBinding(for keyPath: WritableKeyPath<RevisionSettings, Double>) -> Binding<Double> {
+        Binding(
+            get: { appStore.revisionSettings[keyPath: keyPath] },
+            set: { newValue in
+                appStore.revisionSettings[keyPath: keyPath] = max(0.1, newValue)
+            }
+        )
+    }
+
+    var numberFormatter: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        formatter.minimum = 0
+        return formatter
     }
 }
 
